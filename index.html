@@ -609,14 +609,10 @@ https://…png
   }
   document.querySelectorAll('.aperture').forEach(svg=> buildLensKaleidoscope(svg));
 
-  /* ---------------- Google API config ----------------
-     Replace these two with your own, obtained from Google Cloud Console
-     (see the setup steps: OAuth client ID + a Picker/Drive API key,
-     both restricted to your GitHub Pages origin). Public client IDs and
-     referrer-restricted API keys are meant to live in front-end code. */
+  /* ---------------- Google API config ---------------- */
   const GOOGLE_CLIENT_ID = '374162526600-ld6k7pf3h8lic2og5i1f9ap65k8vtifh.apps.googleusercontent.com';
   const GOOGLE_API_KEY   = 'AIzaSyD8AKa2kX_yhrTqZ_INRejnDOmG4CYkRPI';
-  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file'; // non-sensitive scope; Picker grants access to the picked folder + its contents
+  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
   const GOOGLE_CONFIGURED = !GOOGLE_CLIENT_ID.startsWith('YOUR_') && !GOOGLE_API_KEY.startsWith('YOUR_');
 
   /* ---------------- state ---------------- */
@@ -624,7 +620,7 @@ https://…png
     theme: 'light',
     mode: 'rows',
     photos: [],
-    source: null, // {type:'drive', folderId} or {type:'links'}
+    source: null,
     accessToken: null,
     tokenClient: null,
     pickerLoaded: false
@@ -717,30 +713,6 @@ https://…png
       [a[i],a[j]] = [a[j],a[i]];
     }
     return a;
-  }
-
-  /* ---------------- fetching ---------------- */
-  async function fetchDriveFolder(folderId, accessToken){
-    const fields = encodeURIComponent('files(id,name,mimeType,trashed)');
-    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000`
-      + `&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if(!res.ok){
-      const body = await res.json().catch(()=>({}));
-      const msg = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
-      throw new Error(msg);
-    }
-    const data = await res.json();
-    const allFiles = data.files || [];
-    const images = allFiles.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
-    if(!allFiles.length) throw new Error('У цій папці нічого не знайдено. Спробуй обрати папку ще раз.');
-    if(!images.length) throw new Error(`У папці є ${allFiles.length} файл(ів), але жоден не розпізнано як зображення.`);
-    return images.map(f => ({
-      id: f.id,
-      name: f.name,
-      url: `https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`
-    }));
   }
 
   function parseLinkList(text){
@@ -876,7 +848,6 @@ https://…png
         .setTitle('Обери папку або фотографії')
         .setCallback((data)=>{
           if(data.action === google.picker.Action.PICKED){
-            // Повертаємо масив вибраних об'єктів (включає id та mimeType)
             resolve(data.docs);
           } else if(data.action === google.picker.Action.CANCEL){
             reject(new Error('CANCELLED'));
@@ -915,7 +886,7 @@ https://…png
       }));
     } 
     
-    // Якщо вибрано файли (або кілька файлів):
+    // Якщо вибрано файли безпосередньо (або кілька файлів):
     const images = pickedItems.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
     if (!images.length) {
       throw new Error('Обрані елементи не є зображеннями.');
@@ -923,7 +894,7 @@ https://…png
 
     return images.map(f => ({
       id: f.id,
-      name: f.name || f.name,
+      name: f.name,
       url: `https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`
     }));
   }
@@ -957,6 +928,8 @@ https://…png
       googleSignInBtn.textContent = state.accessToken ? 'Обрати іншу папку в Google Drive' : 'Увійти через Google і обрати папку';
     }
   }
+  googleSignInBtn.addEventListener('click', handleGoogleConnect);
+
   /* ---------------- direct-links connect flow ---------------- */
   async function handleLinksConnect(){
     formError.classList.remove('show');
