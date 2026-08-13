@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IAMPHOTOGRAPHER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+<style>
+  /* ---------- Reset ---------- */
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{min-height:100vh;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  img{display:block;max-width:100%;}
+  button,input{font:inherit;color:inherit;}
+  button{cursor:pointer;background:none;border:none;}
+  ::selection{background:var(--accent);color:var(--bg);}
+
+  /* ---------- Theme tokens ---------- */
+  :root{
+    --radius:3px;
+    --ease:cubic-bezier(.22,1,.36,1);
+    --font-display:'Big Shoulders Display',sans-serif;
+    --font-body:'Inter',sans-serif;
+    --font-mono:'IBM Plex Mono',monospace;
+    --bar-h:64px;
+  }
+  [data-theme="light"]{
+    --bg:#F5F5F2;
+    --bg-elev:#FFFFFF;
+    --text:#131210;
+    --text-dim:#6E6C64;
+    --line:rgba(19,18,16,.13);
+    --line-strong:rgba(19,18,16,.28);
+    --accent:#26585B;
+    --accent-soft:rgba(38,88,91,.12);
+    --control-bg:rgba(19,18,16,.05);
+    --control-bg-hover:rgba(19,18,16,.09);
+    --frame-shadow:0 1px 2px rgba(20,20,15,.08),0 8px 20px -12px rgba(20,20,15,.18);
+    --skeleton:linear-gradient(100deg, rgba(19,18,16,.05) 30%, rgba(19,18,16,.10) 45%, rgba(19,18,16,.05) 60%);
+  }
+  [data-theme="dark"]{
+    --bg:#111213;
+    --bg-elev:#191A1B;
+    --text:#EDEDE9;
+    --text-dim:#8E8E88;
+    --line:rgba(237,237,233,.11);
+    --line-strong:rgba(237,237,233,.24);
+    --accent:#63C2BC;
+    --accent-soft:rgba(99,194,188,.14);
+    --control-bg:rgba(237,237,233,.06);
+    --control-bg-hover:rgba(237,237,233,.11);
+    --frame-shadow:0 1px 2px rgba(0,0,0,.4),0 10px 24px -14px rgba(0,0,0,.6);
+    --skeleton:linear-gradient(100deg, rgba(237,237,233,.04) 30%, rgba(237,237,233,.09) 45%, rgba(237,237,233,.04) 60%);
+  }
+  [data-theme="neon"]{
+    --bg:#07070A;
+    --bg-elev:#0E0E12;
+    --text:#F1F1EF;
+    --text-dim:#8C8C9A;
+    --line:rgba(241,241,239,.10);
+    --line-strong:rgba(241,241,239,.22);
+    --accent:#38F5DD;
+    --accent-soft:rgba(56,245,221,.14);
+    --control-bg:rgba(241,241,239,.06);
+    --control-bg-hover:rgba(241,241,239,.11);
+    --neon-a:#38F5DD;
+    --neon-b:#FF3EC0;
+    --frame-shadow:0 1px 2px rgba(0,0,0,.5);
+    --skeleton:linear-gradient(100deg, rgba(241,241,239,.04) 30%, rgba(241,241,239,.09) 45%, rgba(241,241,239,.04) 60%);
+  }
+
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    transition:background .35s var(--ease), color .35s var(--ease);
+  }
+
+  /* ---------- Aperture mark ---------- */
+  .aperture{
+    display:block;flex-shrink:0;
+  }
+  .aperture .blade{
+    transform-origin:50% 50%;
+    transition:fill .35s var(--ease);
+  }
+  .aperture-spin{ animation:spin 70s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(-360deg); } }
+
+  /* ---------- Top bar ---------- */
+  header{
+    position:sticky;top:0;z-index:40;
+    height:var(--bar-h);
+    display:flex;align-items:center;gap:18px;
+    padding:0 20px;
+    background:color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter:blur(14px) saturate(140%);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{
+    display:flex;align-items:center;gap:10px;
+    letter-spacing:.5px;
+    cursor:pointer;
+    background:none;border:none;
+  }
+  .brand-mark{width:32.5px;height:32.5px;color:var(--accent);}
+  .brand-word{
+    font-family:var(--font-display);
+    font-weight:800;
+    font-size:19px;
+    letter-spacing:1.5px;
+    white-space:nowrap;
+  }
+  .bar-spacer{flex:1;}
+  .bar-controls{display:flex;align-items:center;gap:8px;}
+
+  /* generic pill/segmented buttons */
+  .pill-group{
+    display:flex;align-items:center;
+    background:var(--control-bg);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:3px;
+    gap:2px;
+  }
+  .pill-btn{
+    display:flex;align-items:center;justify-content:center;
+    gap:6px;
+    padding:7px 12px;
+    border-radius:999px;
+    font-size:12px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--text-dim);
+    transition:background .25s var(--ease),color .25s var(--ease);
+    white-space:nowrap;
+  }
+  .pill-btn svg{width:14px;height:14px;}
+  .pill-btn.active{ background:var(--bg-elev); color:var(--text); box-shadow:var(--frame-shadow); }
+  .pill-btn:not(.active):hover{ color:var(--text); }
+
+  .icon-btn{
+    width:36px;height:36px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:999px;
+    background:var(--control-bg);
+    border:1px solid var(--line);
+    color:var(--text-dim);
+    transition:background .2s var(--ease), color .2s var(--ease);
+    flex-shrink:0;
+  }
+  .icon-btn:hover{ background:var(--control-bg-hover); color:var(--text); }
+  .icon-btn svg{width:16px;height:16px;}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:9px 16px;
+    border-radius:999px;
+    font-size:12.5px;font-weight:600;letter-spacing:.4px;
+    background:var(--text);color:var(--bg);
+    transition:transform .2s var(--ease), opacity .2s var(--ease);
+  }
+  .btn:hover{ opacity:.85; }
+  .btn:active{ transform:scale(.97); }
+  .btn-ghost{
+    background:transparent;color:var(--text);border:1px solid var(--line-strong);
+  }
+  .btn-ghost:hover{ background:var(--control-bg); opacity:1; }
+
+  .meta-tag{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-dim);
+    letter-spacing:.3px;
+    display:none;
+  }
+  @media(min-width:760px){ .meta-tag{ display:inline-flex; align-items:center; gap:6px; } }
+  .meta-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);}
+
+  /* ---------- Popover ---------- */
+  .popover-wrap{position:relative;}
+  .popover{
+    position:absolute;top:calc(100% + 10px);right:0;
+    width:min(360px, 88vw);
+    background:var(--bg-elev);
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow:0 20px 50px -18px rgba(0,0,0,.35);
+    padding:18px;
+    opacity:0;visibility:hidden;transform:translateY(-6px) scale(.98);
+    transition:opacity .2s var(--ease), transform .2s var(--ease), visibility .2s;
+    z-index:50;
+  }
+  .popover.open{opacity:1;visibility:visible;transform:translateY(0) scale(1);}
+  .popover h3{
+    font-family:var(--font-display);font-weight:700;font-size:16px;letter-spacing:.3px;margin-bottom:4px;
+  }
+  .popover .sub{font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;}
+  .tabs{display:flex;gap:4px;background:var(--control-bg);border-radius:8px;padding:3px;margin-bottom:14px;}
+  .tab-btn{flex:1;text-align:center;padding:7px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--text-dim);}
+  .tab-btn.active{background:var(--bg);color:var(--text);}
+  [data-theme="dark"] .tab-btn.active,[data-theme="neon"] .tab-btn.active{background:var(--bg-elev);border:1px solid var(--line);}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:6px;}
+  .field input,.field textarea{
+    width:100%;padding:10px 11px;
+    background:var(--control-bg);
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:13px;font-family:var(--font-mono);
+    color:var(--text);
+    transition:border-color .2s;
+  }
+  .field textarea{resize:vertical;min-height:74px;line-height:1.5;}
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--accent);}
+  .field .hint{font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5;}
+  .field .hint a{color:var(--accent);text-decoration:underline;}
+  .pane{display:none;}
+  .pane.active{display:block;}
+  .popover-actions{display:flex;gap:8px;margin-top:4px;}
+  .popover-actions .btn{flex:1;justify-content:center;}
+  .form-error{
+    font-size:12px;color:#D6543A;background:rgba(214,84,58,.1);
+    border:1px solid rgba(214,84,58,.25);
+    padding:8px 10px;border-radius:8px;margin-bottom:12px;display:none;
+  }
+  .form-error.show{display:block;}
+
+  /* ---------- Hero / empty state ---------- */
+  .hero{
+    min-height:calc(100vh - var(--bar-h));
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:60px 20px;position:relative;
+    gap:22px;
+  }
+  .hero-aperture{width:137.5px;height:137.5px;color:var(--accent);opacity:.9;}
+  .hero h1{
+    font-family:var(--font-display);
+    font-weight:900;
+    font-size:clamp(34px, 7vw, 64px);
+    letter-spacing:1px;
+    line-height:.95;
+  }
+  .hero p{
+    max-width:440px;color:var(--text-dim);font-size:15px;line-height:1.6;
+  }
+  .hero .btn{padding:13px 26px;font-size:13px;}
+
+  /* ---------- Collage ---------- */
+  main{padding:22px 16px 90px;}
+  .collage{
+    max-width:1500px;margin:0 auto;
+  }
+  /* MIX mode: masonry via columns */
+  .collage.mode-mix{
+    column-gap:14px;
+    column-count:1;
+  }
+  @media(min-width:560px){ .collage.mode-mix{column-count:2;} }
+  @media(min-width:900px){ .collage.mode-mix{column-count:3;} }
+  @media(min-width:1280px){ .collage.mode-mix{column-count:4;} }
+  .collage.mode-mix .frame{
+    break-inside:avoid;margin-bottom:14px;width:100%;
+  }
+  .collage.mode-mix .frame img{width:100%;height:auto;}
+
+  /* ROWS mode: uniform grid */
+  .collage.mode-rows{
+    display:grid;gap:14px;
+    grid-template-columns:repeat(1,1fr);
+  }
+  @media(min-width:560px){ .collage.mode-rows{grid-template-columns:repeat(2,1fr);} }
+  @media(min-width:900px){ .collage.mode-rows{grid-template-columns:repeat(3,1fr);} }
+  @media(min-width:1280px){ .collage.mode-rows{grid-template-columns:repeat(4,1fr);} }
+  .collage.mode-rows .frame{aspect-ratio:1/1;}
+  .collage.mode-rows .frame img{width:100%;height:100%;object-fit:cover;}
+
+  .frame{
+    position:relative;
+    border-radius:var(--radius);
+    overflow:hidden;
+    background:var(--bg-elev);
+    box-shadow:var(--frame-shadow);
+    opacity:0;transform:translateY(16px);
+    transition:opacity .6s var(--ease), transform .6s var(--ease), box-shadow .3s var(--ease);
+  }
+  .frame.visible{opacity:1;transform:translateY(0);}
+  .collage.mode-rows .frame:hover{transform:translateY(-2px);}
+  .frame img{transition:transform .5s var(--ease);}
+  .frame:hover img{transform:scale(1.015);}
+
+  /* neon frame glow — signature detail */
+  [data-theme="neon"] .frame{
+    box-shadow:
+      0 0 0 1px var(--glow-color, var(--neon-a)),
+      0 0 10px 1px color-mix(in srgb, var(--glow-color, var(--neon-a)) 65%, transparent),
+      0 0 26px 4px color-mix(in srgb, var(--glow-color, var(--neon-a)) 30%, transparent);
+  }
+  [data-theme="neon"] .frame:nth-child(3n+1){ --glow-color:var(--neon-a); }
+  [data-theme="neon"] .frame:nth-child(3n+2){ --glow-color:var(--neon-b); }
+  [data-theme="neon"] .frame:nth-child(3n){ --glow-color:#8B7CFF; }
+  [data-theme="neon"] .frame:hover{
+    box-shadow:
+      0 0 0 1.5px var(--glow-color, var(--neon-a)),
+      0 0 16px 2px color-mix(in srgb, var(--glow-color, var(--neon-a)) 80%, transparent),
+      0 0 42px 8px color-mix(in srgb, var(--glow-color, var(--neon-a)) 45%, transparent);
+  }
+
+  .frame.skeleton{ background:var(--skeleton); background-size:200% 100%; animation:shimmer 1.4s infinite; opacity:1;transform:none; }
+  .frame.skeleton::before{content:'';display:block;padding-top:130%;}
+  .collage.mode-rows .frame.skeleton::before{padding-top:100%;}
+  @keyframes shimmer{ 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+
+  footer{
+    text-align:center;padding:30px 20px 50px;
+    font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:.4px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;}
+  }
+
+  /* mobile bar tweaks */
+  @media(max-width:640px){
+    header{padding:0 12px;gap:10px;}
+    .brand-word{font-size:16px;}
+    .pill-btn span.label{display:none;}
+    .pill-btn{padding:8px;}
+  }
+</style>
+</head>
+<body data-theme="light">
+
+<header>
+  <button class="brand" id="brandResetBtn" aria-label="IAMPHOTOGRAPHER — на початок" type="button">
+    <svg class="brand-mark aperture" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g id="apertureBladesTop"></g>
+    </svg>
+    <span class="brand-word">IAMPHOTOGRAPHER</span>
+  </button>
+
+  <div class="bar-spacer"></div>
+
+  <div class="bar-controls">
+    <span class="meta-tag" id="metaTag" style="display:none;">
+      <span class="meta-dot"></span><span id="metaText">0 photos</span>
+    </span>
+
+    <div class="pill-group" role="group" aria-label="Режим відображення">
+      <button class="pill-btn active" data-mode="rows" id="modeRowsBtn">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5.5" height="5.5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+        <span class="label">Rows</span>
+      </button>
+      <button class="pill-btn" data-mode="mix" id="modeMixBtn">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1.5" y="1.5" width="5.5" height="9" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="1.5" width="5.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="8" width="5.5" height="6.5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+        <span class="label">Mix</span>
+      </button>
+    </div>
+
+    <div class="pill-group" role="group" aria-label="Тема">
+      <button class="pill-btn active" data-theme-btn="light" title="Світла">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3.4" stroke="currentColor" stroke-width="1.3"/><path d="M8 1.3v1.6M8 13v1.6M14.6 8H13M3 8H1.3M12.7 3.3l-1.1 1.1M4.4 11.6l-1.1 1.1M12.7 12.7l-1.1-1.1M4.4 4.4L3.3 3.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </button>
+      <button class="pill-btn" data-theme-btn="dark" title="Темна">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M13.8 9.7A6 6 0 016.3 2.2 6 6 0 108 14a6 6 0 005.8-4.3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="pill-btn" data-theme-btn="neon" title="Неон">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M9 1L3 9.5h4L6 15l6.5-9H8.5L9 1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="popover-wrap">
+      <button class="btn btn-ghost" id="folderTriggerBtn">Підключити папку</button>
+      <div class="popover" id="folderPopover">
+        <h3>Джерело фото</h3>
+        <p class="sub">Увійди через Google і обери папку на Диску, або встав прямі посилання на зображення.</p>
+
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="drive">Google Drive</button>
+          <button class="tab-btn" data-tab="links">Посилання</button>
+        </div>
+
+        <div class="form-error" id="formError"></div>
+
+        <div class="pane active" data-pane="drive">
+          <div class="field" style="text-align:center;">
+            <button class="btn" id="googleSignInBtn" style="width:100%;justify-content:center;">Увійти через Google і обрати папку</button>
+            <div class="hint" id="driveSignedInHint" style="display:none;text-align:center;margin-top:10px;"></div>
+            <div class="hint" style="margin-top:10px;">Google покаже вікно входу, а потім даш дозвіл лише на перегляд Диску. Сайт не отримує пароль і не може нічого змінювати чи видаляти.</div>
+          </div>
+        </div>
+
+        <div class="pane" data-pane="links">
+          <div class="field">
+            <label for="linkList">Прямі посилання на фото</label>
+            <textarea id="linkList" placeholder="https://…jpg
+https://…png
+кожне посилання з нового рядка"></textarea>
+            <div class="hint">Швидкий спосіб без входу в акаунт — встав прямі URL зображень, по одному на рядок.</div>
+          </div>
+          <div class="popover-actions">
+            <button class="btn" id="connectLinksBtn">Показати галерею</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div id="heroSection" class="hero">
+  <svg class="hero-aperture aperture aperture-spin" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <g id="apertureBladesHero"></g>
+  </svg>
+  <h1>IAMPHOTOGRAPHER</h1>
+  <p>Мінімальний перегляд твоїх фото у вигляді колажу. Підключи Google Drive папку — і почни гортати.</p>
+  <button class="btn" id="heroConnectBtn">Підключити папку</button>
+</div>
+
+<main id="mainSection" style="display:none;">
+  <div class="collage mode-rows" id="collage"></div>
+</main>
+
+<footer id="footer" style="display:none;">IAMPHOTOGRAPHER — мінімалізм для перегляду світлин</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- lens / heart-kaleidoscope mark render ---------------- */
+  let markCounter = 0;
+  function buildLensKaleidoscope(svg){
+    const ns = "http://www.w3.org/2000/svg";
+    const g = svg.querySelector('g');
+    const cx=24, cy=24;
+    const uid = 'lens' + (markCounter++);
+    const palette = ['#E23A52','#FF7FB4','#111111','#FFFFFF'];
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function heartPath(){
+      return "M0,9 C0,9 -9,3 -9,-2.5 C-9,-5.5 -6.5,-8 -3.5,-8 C-1.5,-8 0,-6.5 0,-5 C0,-6.5 1.5,-8 3.5,-8 C6.5,-8 9,-5.5 9,-2.5 C9,3 0,9 0,9 Z";
+    }
+    function placeHeart(x, y, baseScale, mode, color, phase, dur){
+      const holder = document.createElementNS(ns,'g');
+      holder.setAttribute('transform', `translate(${x.toFixed(2)},${y.toFixed(2)})`);
+
+      const p = document.createElementNS(ns,'path');
+      p.setAttribute('d', heartPath());
+      if(mode === 'outline'){
+        p.setAttribute('fill','none');
+        p.setAttribute('stroke', color);
+        p.setAttribute('stroke-width', (1.6/baseScale).toFixed(2));
+        p.setAttribute('stroke-linejoin','round');
+      } else {
+        p.setAttribute('fill', color);
+        p.setAttribute('stroke', color === '#FFFFFF' ? 'rgba(0,0,0,0.32)' : 'rgba(0,0,0,0.12)');
+        p.setAttribute('stroke-width', (0.6/baseScale).toFixed(2));
+      }
+
+      const lo = (baseScale*0.6).toFixed(3);
+      const hi = (baseScale*1.45).toFixed(3);
+      const startVal = phase === 'grow' ? lo : hi;
+      p.setAttribute('transform', `scale(${startVal})`);
+      holder.appendChild(p);
+
+      if(!reduceMotion){
+        const at = document.createElementNS(ns,'animateTransform');
+        at.setAttribute('attributeName','transform');
+        at.setAttribute('type','scale');
+        at.setAttribute('values', phase === 'grow' ? `${lo};${hi};${lo}` : `${hi};${lo};${hi}`);
+        at.setAttribute('keyTimes','0;0.5;1');
+        at.setAttribute('calcMode','spline');
+        at.setAttribute('keySplines','0.45 0 0.55 1;0.45 0 0.55 1');
+        at.setAttribute('dur', dur + 's');
+        at.setAttribute('repeatCount','indefinite');
+        p.appendChild(at);
+      }
+      g.appendChild(holder);
+    }
+
+    /* ---- defs: glass gradient + soft glow filter for the specular glint ---- */
+    const defs = document.createElementNS(ns,'defs');
+    const grad = document.createElementNS(ns,'radialGradient');
+    grad.setAttribute('id', uid+'-glass');
+    grad.setAttribute('cx','42%'); grad.setAttribute('cy','38%'); grad.setAttribute('r','75%');
+    [['0%','#16232B'],['55%','#0A0A0C'],['100%','#000000']].forEach(([off,color])=>{
+      const st = document.createElementNS(ns,'stop');
+      st.setAttribute('offset',off); st.setAttribute('stop-color',color);
+      grad.appendChild(st);
+    });
+    defs.appendChild(grad);
+
+    const blur = document.createElementNS(ns,'filter');
+    blur.setAttribute('id', uid+'-blur');
+    blur.setAttribute('x','-50%'); blur.setAttribute('y','-50%'); blur.setAttribute('width','200%'); blur.setAttribute('height','200%');
+    const fe = document.createElementNS(ns,'feGaussianBlur');
+    fe.setAttribute('stdDeviation','1.4');
+    blur.appendChild(fe);
+    defs.appendChild(blur);
+
+    const textR = 17.85;
+    const arcPath = document.createElementNS(ns,'path');
+    arcPath.setAttribute('id', uid+'-textarc');
+    arcPath.setAttribute('d', `M${cx},${(cy-textR).toFixed(2)} A${textR},${textR} 0 1 1 ${cx},${(cy+textR).toFixed(2)} A${textR},${textR} 0 1 1 ${cx},${(cy-textR).toFixed(2)}`);
+    arcPath.setAttribute('fill','none');
+    defs.appendChild(arcPath);
+    g.appendChild(defs);
+
+    /* ---- barrel (real lens silhouette: body + grooved grip ring) ---- */
+    const barrel = document.createElementNS(ns,'circle');
+    barrel.setAttribute('cx',cx); barrel.setAttribute('cy',cy); barrel.setAttribute('r',22.5);
+    barrel.setAttribute('fill','#0B0B0C');
+    g.appendChild(barrel);
+
+    const bevel = document.createElementNS(ns,'circle');
+    bevel.setAttribute('cx',cx); bevel.setAttribute('cy',cy); bevel.setAttribute('r',22.3);
+    bevel.setAttribute('fill','none'); bevel.setAttribute('stroke','#3A3A3C');
+    bevel.setAttribute('stroke-width','0.6'); bevel.setAttribute('opacity','0.55');
+    g.appendChild(bevel);
+
+    // grooved focus-ring texture ticks
+    const grooveCount = 60;
+    for(let i=0;i<grooveCount;i++){
+      const a = (Math.PI*2/grooveCount)*i;
+      const r1 = 20.1, r2 = 22.2;
+      const x1 = cx + r1*Math.cos(a), y1 = cy + r1*Math.sin(a);
+      const x2 = cx + r2*Math.cos(a), y2 = cy + r2*Math.sin(a);
+      const line = document.createElementNS(ns,'line');
+      line.setAttribute('x1',x1.toFixed(2)); line.setAttribute('y1',y1.toFixed(2));
+      line.setAttribute('x2',x2.toFixed(2)); line.setAttribute('y2',y2.toFixed(2));
+      line.setAttribute('stroke', i % 2 === 0 ? '#3E3E40' : '#222224');
+      line.setAttribute('stroke-width','0.55');
+      g.appendChild(line);
+    }
+
+    // engraved barrel text, stretched around the full circle, centered between the grey rings
+    const circumference = 2 * Math.PI * textR;
+    const engrave = document.createElementNS(ns,'text');
+    engrave.setAttribute('font-family',"'IBM Plex Mono', monospace");
+    engrave.setAttribute('font-size','2.3');
+    engrave.setAttribute('letter-spacing','0.1');
+    engrave.setAttribute('fill','#9C9C9F');
+    engrave.setAttribute('opacity','0.85');
+    engrave.setAttribute('dominant-baseline','middle');
+    const enginePath = document.createElementNS(ns,'textPath');
+    enginePath.setAttribute('href', '#'+uid+'-textarc');
+    enginePath.setAttribute('startOffset','0');
+    enginePath.setAttribute('textLength', (circumference*0.96).toFixed(1));
+    enginePath.setAttribute('lengthAdjust','spacingAndGlyphs');
+    enginePath.setAttribute('dominant-baseline','middle');
+    enginePath.textContent = 'IAMPHOTOGRAPHER LENS   \u00D882mm   ZOOM 16-35mm 1:2.8';
+    engrave.appendChild(enginePath);
+    g.appendChild(engrave);
+
+    // thin metal accent ring (distance-scale style)
+    const accent = document.createElementNS(ns,'circle');
+    accent.setAttribute('cx',cx); accent.setAttribute('cy',cy); accent.setAttribute('r',19.4);
+    accent.setAttribute('fill','none'); accent.setAttribute('stroke','#57585C');
+    accent.setAttribute('stroke-width','0.8'); accent.setAttribute('opacity','0.7');
+    g.appendChild(accent);
+
+    // glass element
+    const glass = document.createElementNS(ns,'circle');
+    glass.setAttribute('cx',cx); glass.setAttribute('cy',cy); glass.setAttribute('r',16.3);
+    glass.setAttribute('fill', `url(#${uid}-glass)`);
+    g.appendChild(glass);
+
+    const glassRim = document.createElementNS(ns,'circle');
+    glassRim.setAttribute('cx',cx); glassRim.setAttribute('cy',cy); glassRim.setAttribute('r',16.3);
+    glassRim.setAttribute('fill','none'); glassRim.setAttribute('stroke','#4A5D63');
+    glassRim.setAttribute('stroke-width','0.5'); glassRim.setAttribute('opacity','0.6');
+    g.appendChild(glassRim);
+
+    /* ---- hearts placed along radial lines, seen through the glass ---- */
+    const spokeCount = 6;
+    const positions = [
+      { r:1.8,  s:0.11, mode:'fill'    },
+      { r:4.5,  s:0.17, mode:'outline' },
+      { r:7.6,  s:0.27, mode:'fill'    },
+      { r:10.8, s:0.20, mode:'outline' },
+      { r:13.9, s:0.13, mode:'fill'    }
+    ];
+    let globalIndex = 0;
+    for(let i=0;i<spokeCount;i++){
+      const angle = (Math.PI*2/spokeCount)*i - Math.PI/2;
+      const dx = Math.cos(angle), dy = Math.sin(angle);
+      positions.forEach((pos, j)=>{
+        globalIndex++;
+        const x = cx + dx*pos.r, y = cy + dy*pos.r;
+        const color = palette[(i + j) % palette.length];
+        const jitter = 0.68 + Math.random()*0.75;
+        const scale = pos.s * jitter;
+        const phase = globalIndex % 2 === 0 ? 'grow' : 'shrink';
+        const dur = (3.6 + Math.random()*2.4).toFixed(2);
+        placeHeart(x, y, scale, pos.mode, color, phase, dur);
+      });
+    }
+    placeHeart(cx, cy, 0.10, 'fill', palette[2], 'grow', 4.2);
+
+    // specular glint on the curved glass — drawn last, on top
+    const glint = document.createElementNS(ns,'ellipse');
+    glint.setAttribute('cx', cx-6); glint.setAttribute('cy', cy-7);
+    glint.setAttribute('rx','5.5'); glint.setAttribute('ry','2.6');
+    glint.setAttribute('transform', `rotate(-35 ${cx-6} ${cy-7})`);
+    glint.setAttribute('fill','#FFFFFF'); glint.setAttribute('opacity','0.16');
+    glint.setAttribute('filter', `url(#${uid}-blur)`);
+    g.appendChild(glint);
+  }
+  document.querySelectorAll('.aperture').forEach(svg=> buildLensKaleidoscope(svg));
+
+  /* ---------------- Google API config ----------------
+     Replace these two with your own, obtained from Google Cloud Console
+     (see the setup steps: OAuth client ID + a Picker/Drive API key,
+     both restricted to your GitHub Pages origin). Public client IDs and
+     referrer-restricted API keys are meant to live in front-end code. */
+  const GOOGLE_CLIENT_ID = '374162526600-ld6k7pf3h8lic2og5i1f9ap65k8vtifh.apps.googleusercontent.com';
+  const GOOGLE_API_KEY   = 'AIzaSyD8AKa2kX_yhrTqZ_INRejnDOmG4CYkRPI';
+  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file'; // non-sensitive scope; Picker grants access to the picked folder + its contents
+  const GOOGLE_CONFIGURED = !GOOGLE_CLIENT_ID.startsWith('YOUR_') && !GOOGLE_API_KEY.startsWith('YOUR_');
+
+  /* ---------------- state ---------------- */
+  const state = {
+    theme: 'light',
+    mode: 'rows',
+    photos: [],
+    source: null, // {type:'drive', folderId} or {type:'links'}
+    accessToken: null,
+    tokenClient: null,
+    pickerLoaded: false
+  };
+
+  const $ = sel => document.querySelector(sel);
+  const body = document.body;
+  const collageEl = $('#collage');
+  const heroSection = $('#heroSection');
+  const mainSection = $('#mainSection');
+  const footer = $('#footer');
+  const metaTag = $('#metaTag');
+  const metaText = $('#metaText');
+  const folderTriggerBtn = $('#folderTriggerBtn');
+  const heroConnectBtn = $('#heroConnectBtn');
+  const popover = $('#folderPopover');
+  const googleSignInBtn = $('#googleSignInBtn');
+  const connectLinksBtn = $('#connectLinksBtn');
+  const driveSignedInHint = $('#driveSignedInHint');
+  const formError = $('#formError');
+
+  /* ---------------- persistence (personal, best-effort) ---------------- */
+  async function saveSetting(key, value){
+    try{ await window.storage.set(key, JSON.stringify(value), false); }catch(e){ /* ignore */ }
+  }
+  async function loadSetting(key){
+    try{
+      const r = await window.storage.get(key, false);
+      return r ? JSON.parse(r.value) : null;
+    }catch(e){ return null; }
+  }
+
+  /* ---------------- theme ---------------- */
+  function setTheme(t){
+    state.theme = t;
+    body.setAttribute('data-theme', t);
+    document.querySelectorAll('[data-theme-btn]').forEach(b=>{
+      b.classList.toggle('active', b.dataset.themeBtn === t);
+    });
+    saveSetting('theme', t);
+  }
+  document.querySelectorAll('[data-theme-btn]').forEach(b=>{
+    b.addEventListener('click', ()=> setTheme(b.dataset.themeBtn));
+  });
+
+  /* ---------------- mode ---------------- */
+  function setMode(m, opts){
+    opts = opts || {};
+    state.mode = m;
+    $('#modeRowsBtn').classList.toggle('active', m==='rows');
+    $('#modeMixBtn').classList.toggle('active', m==='mix');
+    collageEl.classList.toggle('mode-rows', m==='rows');
+    collageEl.classList.toggle('mode-mix', m==='mix');
+    saveSetting('mode', m);
+    if(!opts.skipRerender && state.photos.length) renderPhotos();
+  }
+  $('#modeRowsBtn').addEventListener('click', ()=> setMode('rows'));
+  $('#modeMixBtn').addEventListener('click', ()=> setMode('mix'));
+
+  /* ---------------- popover ---------------- */
+  function openPopover(){ popover.classList.add('open'); }
+  function closePopover(){ popover.classList.remove('open'); }
+  folderTriggerBtn.addEventListener('click', e=>{ e.stopPropagation(); popover.classList.toggle('open'); });
+  heroConnectBtn.addEventListener('click', openPopover);
+  document.addEventListener('click', e=>{
+    if(!popover.contains(e.target) && e.target!==folderTriggerBtn && e.target!==heroConnectBtn) closePopover();
+  });
+  popover.addEventListener('click', e=> e.stopPropagation());
+
+  document.querySelectorAll('.tab-btn').forEach(tb=>{
+    tb.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab-btn').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+      tb.classList.add('active');
+      document.querySelector(`.pane[data-pane="${tb.dataset.tab}"]`).classList.add('active');
+      formError.classList.remove('show');
+    });
+  });
+
+  function showError(msg){
+    formError.textContent = msg;
+    formError.classList.add('show');
+  }
+
+  /* ---------------- utils ---------------- */
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
+  /* ---------------- fetching ---------------- */
+  async function fetchDriveFolder(folderId, accessToken){
+    const fields = encodeURIComponent('files(id,name,mimeType)');
+    const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed = false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if(!res.ok){
+      const body = await res.json().catch(()=>({}));
+      const msg = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    const files = data.files || [];
+    if(!files.length) throw new Error('У цій папці не знайдено зображень.');
+    return files.map(f => ({
+      id: f.id,
+      name: f.name,
+      url: `https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`
+    }));
+  }
+
+  function parseLinkList(text){
+    const lines = text.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+    if(!lines.length) throw new Error('Додай хоча б одне посилання на зображення.');
+    return lines.map((url,i)=>({ id:'link-'+i, name:'photo-'+i, url }));
+  }
+
+  /* ---------------- render ---------------- */
+  let observer;
+  function initObserver(){
+    if(observer) observer.disconnect();
+    observer = new IntersectionObserver((entries)=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '120px 0px' });
+  }
+
+  function renderPhotos(){
+    const list = state.mode === 'mix' ? shuffle(state.photos) : state.photos;
+    collageEl.innerHTML = '';
+    initObserver();
+    list.forEach((photo, idx)=>{
+      const frame = document.createElement('div');
+      frame.className = 'frame';
+      frame.style.transitionDelay = Math.min(idx*18, 260) + 'ms';
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt = photo.name || 'photo';
+      img.src = photo.url;
+      img.referrerPolicy = 'no-referrer';
+      img.onerror = () => { frame.style.display = 'none'; };
+      frame.appendChild(img);
+      collageEl.appendChild(frame);
+      observer.observe(frame);
+    });
+  }
+
+  function showSkeletons(count){
+    collageEl.innerHTML = '';
+    for(let i=0;i<count;i++){
+      const f = document.createElement('div');
+      f.className = 'frame skeleton';
+      collageEl.appendChild(f);
+    }
+  }
+
+  function showGallery(){
+    heroSection.style.display = 'none';
+    mainSection.style.display = 'block';
+    footer.style.display = 'block';
+    folderTriggerBtn.textContent = 'Змінити папку';
+    metaTag.style.display = 'inline-flex';
+  }
+
+  function resetToStart(){
+    closePopover();
+    state.photos = [];
+    state.source = null;
+    collageEl.innerHTML = '';
+    mainSection.style.display = 'none';
+    footer.style.display = 'none';
+    metaTag.style.display = 'none';
+    folderTriggerBtn.textContent = 'Підключити папку';
+    heroSection.style.display = 'flex';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  $('#brandResetBtn').addEventListener('click', resetToStart);
+
+  function finishLoad(photos){
+    state.photos = photos;
+    metaText.textContent = `${photos.length} photo${photos.length===1?'':'s'}`;
+    renderPhotos();
+    closePopover();
+  }
+
+  function failLoad(message){
+    showError(message || 'Щось пішло не так. Спробуй ще раз.');
+    if(!state.photos.length){
+      mainSection.style.display = 'none';
+      footer.style.display = 'none';
+      heroSection.style.display = 'flex';
+      folderTriggerBtn.textContent = 'Підключити папку';
+    }
+  }
+
+  /* ---------------- Google sign-in + Picker ---------------- */
+  function ensureTokenClient(){
+    if(state.tokenClient || !window.google || !google.accounts) return state.tokenClient;
+    state.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: DRIVE_SCOPE,
+      callback: '' // set per-request below
+    });
+    return state.tokenClient;
+  }
+
+  function requestAccessToken(){
+    return new Promise((resolve, reject)=>{
+      const client = ensureTokenClient();
+      if(!client){ reject(new Error('Google-скрипт ще завантажується, спробуй ще раз за секунду.')); return; }
+      client.callback = (resp)=>{
+        if(resp.error){ reject(new Error('Не вдалось увійти через Google.')); return; }
+        state.accessToken = resp.access_token;
+        resolve(resp.access_token);
+      };
+      client.requestAccessToken({ prompt: state.accessToken ? '' : 'consent' });
+    });
+  }
+
+  function loadPicker(){
+    return new Promise((resolve)=>{
+      if(state.pickerLoaded){ resolve(); return; }
+      gapi.load('picker', ()=>{ state.pickerLoaded = true; resolve(); });
+    });
+  }
+
+  async function openFolderPicker(){
+    await loadPicker();
+    return new Promise((resolve, reject)=>{
+      const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+        .setSelectFolderEnabled(true)
+        .setIncludeFolders(true)
+        .setMimeTypes('application/vnd.google-apps.folder');
+      const picker = new google.picker.PickerBuilder()
+        .setOAuthToken(state.accessToken)
+        .setDeveloperKey(GOOGLE_API_KEY)
+        .addView(view)
+        .setTitle('Обери папку з фото')
+        .setCallback((data)=>{
+          if(data.action === google.picker.Action.PICKED){
+            resolve(data.docs[0].id);
+          } else if(data.action === google.picker.Action.CANCEL){
+            reject(new Error('CANCELLED'));
+          }
+        })
+        .build();
+      picker.setVisible(true);
+    });
+  }
+
+  async function handleGoogleConnect(){
+    if(!GOOGLE_CONFIGURED){
+      showError('Вхід через Google ще не налаштований для цього сайту — власник має додати свій Client ID та API ключ у коді.');
+      return;
+    }
+    formError.classList.remove('show');
+    googleSignInBtn.disabled = true;
+    const wasSignedIn = !!state.accessToken;
+    googleSignInBtn.textContent = wasSignedIn ? 'Відкриваємо вибір папки…' : 'Вхід через Google…';
+    try{
+      await requestAccessToken();
+      driveSignedInHint.style.display = 'block';
+      driveSignedInHint.textContent = 'Увійшли через Google. Обери папку у вікні, що відкрилось.';
+      const folderId = await openFolderPicker();
+      showGallery();
+      showSkeletons(12);
+      const photos = await fetchDriveFolder(folderId, state.accessToken);
+      state.source = { type:'drive', folderId };
+      finishLoad(photos);
+    }catch(err){
+      if(err && err.message === 'CANCELLED'){ /* user closed the picker, no error needed */ }
+      else failLoad(err && err.message);
+    }finally{
+      googleSignInBtn.disabled = false;
+      googleSignInBtn.textContent = state.accessToken ? 'Обрати іншу папку в Google Drive' : 'Увійти через Google і обрати папку';
+    }
+  }
+  googleSignInBtn.addEventListener('click', handleGoogleConnect);
+
+  /* ---------------- direct-links connect flow ---------------- */
+  async function handleLinksConnect(){
+    formError.classList.remove('show');
+    connectLinksBtn.textContent = 'Завантаження…';
+    connectLinksBtn.disabled = true;
+    try{
+      const text = $('#linkList').value.trim();
+      const photos = parseLinkList(text);
+      showGallery();
+      showSkeletons(Math.min(photos.length,12));
+      saveSetting('linkList', text);
+      state.source = { type:'links' };
+      finishLoad(photos);
+    }catch(err){
+      failLoad(err.message);
+    }finally{
+      connectLinksBtn.textContent = 'Показати галерею';
+      connectLinksBtn.disabled = false;
+    }
+  }
+  connectLinksBtn.addEventListener('click', handleLinksConnect);
+
+  /* ---------------- init from storage ---------------- */
+  (async function init(){
+    const savedTheme = await loadSetting('theme');
+    if(savedTheme) setTheme(savedTheme);
+    const savedMode = await loadSetting('mode');
+    if(savedMode) setMode(savedMode, {skipRerender:true});
+    const savedLinks = await loadSetting('linkList');
+    if(savedLinks) $('#linkList').value = savedLinks;
+    if(!GOOGLE_CONFIGURED){
+      googleSignInBtn.title = 'Власник сайту ще не додав Client ID та API ключ Google у код';
+    }
+  })();
+
+})();
+</script>
+</body>
+</html>
