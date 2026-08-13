@@ -721,9 +721,10 @@ https://…png
 
   /* ---------------- fetching ---------------- */
   async function fetchDriveFolder(folderId, accessToken){
-    const fields = encodeURIComponent('files(id,name,mimeType)');
-    const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed = false`);
-    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000`;
+    const fields = encodeURIComponent('files(id,name,mimeType,trashed)');
+    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000`
+      + `&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
     if(!res.ok){
       const body = await res.json().catch(()=>({}));
@@ -731,9 +732,11 @@ https://…png
       throw new Error(msg);
     }
     const data = await res.json();
-    const files = data.files || [];
-    if(!files.length) throw new Error('У цій папці не знайдено зображень.');
-    return files.map(f => ({
+    const allFiles = data.files || [];
+    const images = allFiles.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
+    if(!allFiles.length) throw new Error('У цій папці нічого не знайдено. Спробуй обрати папку ще раз.');
+    if(!images.length) throw new Error(`У папці є ${allFiles.length} файл(ів), але жоден не розпізнано як зображення.`);
+    return images.map(f => ({
       id: f.id,
       name: f.name,
       url: `https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`
