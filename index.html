@@ -253,17 +253,21 @@
   .collage{
     max-width:1500px;margin:0 auto;
   }
-  /* MIX mode: masonry via columns */
+  /* MIX mode: masonry via independent JS-distributed columns (no CSS column-count —
+     that approach rebalances the whole layout whenever a lazy image's height resolves,
+     which is what caused photos to flicker/reflow) */
   .collage.mode-mix{
-    column-gap:14px;
-    column-count:1;
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
   }
-  @media(min-width:560px){ .collage.mode-mix{column-count:2;} }
-  @media(min-width:900px){ .collage.mode-mix{column-count:3;} }
-  @media(min-width:1280px){ .collage.mode-mix{column-count:4;} }
-  .collage.mode-mix .frame{
-    break-inside:avoid;margin-bottom:14px;width:100%;
+  .collage.mode-mix .mix-col{
+    display:flex;flex-direction:column;
+    gap:14px;
+    flex:1 1 0;
+    min-width:0;
   }
+  .collage.mode-mix .frame{ width:100%; }
   .collage.mode-mix .frame img{width:100%;height:auto;}
 
   /* ROWS mode: uniform grid */
@@ -316,6 +320,57 @@
   footer{
     text-align:center;padding:30px 20px 50px;
     font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:.4px;
+  }
+
+  /* ---------- Lightbox ---------- */
+  .lightbox{
+    position:fixed;inset:0;z-index:100;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(6,6,7,0.94);
+    opacity:0;visibility:hidden;
+    transition:opacity .25s var(--ease), visibility .25s;
+    padding:56px 16px;
+  }
+  .lightbox.open{opacity:1;visibility:visible;}
+  .lb-figure{
+    max-width:100%;max-height:100%;margin:0;
+    display:flex;align-items:center;justify-content:center;
+    cursor:zoom-out;
+  }
+  .lb-figure img{
+    max-width:88vw;max-height:82vh;
+    width:auto;height:auto;
+    object-fit:contain;
+    border-radius:2px;
+    box-shadow:0 30px 80px -20px rgba(0,0,0,.6);
+    opacity:0;transform:scale(.98);
+    transition:opacity .22s var(--ease), transform .22s var(--ease);
+  }
+  .lb-figure img.shown{opacity:1;transform:scale(1);}
+  .lb-arrow{
+    position:absolute;top:50%;transform:translateY(-50%);
+    width:46px;height:46px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.08);
+    color:#F2F2F0;
+    border:1px solid rgba(255,255,255,.16);
+    transition:background .2s var(--ease);
+    z-index:2;
+  }
+  .lb-arrow:hover{background:rgba(255,255,255,.18);}
+  .lb-arrow svg{width:20px;height:20px;}
+  .lb-prev{left:14px;}
+  .lb-next{right:14px;}
+  .lb-counter{
+    position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.5px;
+    color:rgba(255,255,255,.65);
+  }
+  @media(max-width:640px){
+    .lb-arrow{width:38px;height:38px;}
+    .lb-prev{left:6px;}
+    .lb-next{right:6px;}
+    .lightbox{padding:40px 6px;}
   }
 
   @media (prefers-reduced-motion: reduce){
@@ -423,6 +478,19 @@ https://…png
 </main>
 
 <footer id="footer" style="display:none;">IAMPHOTOGRAPHER — мінімалізм для перегляду світлин</footer>
+
+<div class="lightbox" id="lightbox" aria-hidden="true">
+  <button class="lb-arrow lb-prev" id="lbPrev" aria-label="Попереднє фото">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <figure class="lb-figure" id="lbFigure">
+    <img id="lbImg" alt="">
+  </figure>
+  <button class="lb-arrow lb-next" id="lbNext" aria-label="Наступне фото">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <div class="lb-counter" id="lbCounter"></div>
+</div>
 
 <script>
 (function(){
@@ -624,6 +692,9 @@ https://…png
     theme: 'light',
     mode: 'rows',
     photos: [],
+    renderedPhotos: [],
+    mixOrder: null,
+    lastColCount: null,
     source: null, // {type:'drive', folderId} or {type:'links'}
     accessToken: null,
     tokenClient: null,
@@ -679,6 +750,7 @@ https://…png
     collageEl.classList.toggle('mode-rows', m==='rows');
     collageEl.classList.toggle('mode-mix', m==='mix');
     saveSetting('mode', m);
+    if(m === 'mix' && !opts.skipRerender) state.mixOrder = null; // fresh shuffle on explicit Mix click
     if(!opts.skipRerender && state.photos.length) renderPhotos();
   }
   $('#modeRowsBtn').addEventListener('click', ()=> setMode('rows'));
@@ -740,24 +812,66 @@ https://…png
     }, { rootMargin: '120px 0px' });
   }
 
+  function getColumnCount(){
+    const w = window.innerWidth;
+    if(w >= 1280) return 4;
+    if(w >= 900) return 3;
+    if(w >= 560) return 2;
+    return 1;
+  }
+
+  function buildFrame(photo, idx){
+    const frame = document.createElement('div');
+    frame.className = 'frame';
+    frame.style.transitionDelay = Math.min(idx*18, 260) + 'ms';
+    frame.style.cursor = 'zoom-in';
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.alt = photo.name || 'photo';
+    img.src = photo.url;
+    img.referrerPolicy = 'no-referrer';
+    img.onerror = () => { frame.style.display = 'none'; };
+    frame.appendChild(img);
+    frame.addEventListener('click', ()=> openLightbox(idx));
+    return frame;
+  }
+
   function renderPhotos(){
-    const list = state.mode === 'mix' ? shuffle(state.photos) : state.photos;
+    let list;
+    if(state.mode === 'mix'){
+      if(!state.mixOrder) state.mixOrder = shuffle(state.photos);
+      list = state.mixOrder;
+    } else {
+      list = state.photos;
+    }
+    state.renderedPhotos = list;
     collageEl.innerHTML = '';
     initObserver();
-    list.forEach((photo, idx)=>{
-      const frame = document.createElement('div');
-      frame.className = 'frame';
-      frame.style.transitionDelay = Math.min(idx*18, 260) + 'ms';
-      const img = document.createElement('img');
-      img.loading = 'lazy';
-      img.alt = photo.name || 'photo';
-      img.src = photo.url;
-      img.referrerPolicy = 'no-referrer';
-      img.onerror = () => { frame.style.display = 'none'; };
-      frame.appendChild(img);
-      collageEl.appendChild(frame);
-      observer.observe(frame);
-    });
+
+    if(state.mode === 'mix'){
+      // independent columns, filled round-robin — each column's height is its own
+      // business, so one photo's lazy-load resolving never reshuffles the others
+      const colCount = getColumnCount();
+      state.lastColCount = colCount;
+      const cols = [];
+      for(let i=0;i<colCount;i++){
+        const col = document.createElement('div');
+        col.className = 'mix-col';
+        collageEl.appendChild(col);
+        cols.push(col);
+      }
+      list.forEach((photo, idx)=>{
+        const frame = buildFrame(photo, idx);
+        cols[idx % colCount].appendChild(frame);
+        observer.observe(frame);
+      });
+    } else {
+      list.forEach((photo, idx)=>{
+        const frame = buildFrame(photo, idx);
+        collageEl.appendChild(frame);
+        observer.observe(frame);
+      });
+    }
   }
 
   function showSkeletons(count){
@@ -793,6 +907,7 @@ https://…png
 
   function finishLoad(photos){
     state.photos = photos;
+    state.mixOrder = null;
     metaText.textContent = `${photos.length} photo${photos.length===1?'':'s'}`;
     renderPhotos();
     closePopover();
@@ -918,6 +1033,90 @@ https://…png
     }
   }
   connectLinksBtn.addEventListener('click', handleLinksConnect);
+
+  /* ---------------- lightbox ---------------- */
+  const lightbox = $('#lightbox');
+  const lbFigure = $('#lbFigure');
+  const lbImg = $('#lbImg');
+  const lbPrev = $('#lbPrev');
+  const lbNext = $('#lbNext');
+  const lbCounter = $('#lbCounter');
+  let lbIndex = 0;
+
+  function updateLightboxImage(){
+    const list = state.renderedPhotos;
+    if(!list || !list.length) return;
+    const photo = list[lbIndex];
+    lbImg.classList.remove('shown');
+    const nextSrc = photo.url;
+    const swap = () => {
+      lbImg.src = nextSrc;
+      lbImg.alt = photo.name || 'photo';
+      requestAnimationFrame(()=> lbImg.classList.add('shown'));
+    };
+    // small delay lets the fade-out finish before swapping the source
+    setTimeout(swap, 90);
+    lbCounter.textContent = `${lbIndex + 1} / ${list.length}`;
+  }
+
+  function openLightbox(index){
+    if(!state.renderedPhotos || !state.renderedPhotos.length) return;
+    lbIndex = index;
+    lightbox.classList.add('open');
+    lightbox.setAttribute('aria-hidden','false');
+    document.body.style.overflow = 'hidden';
+    updateLightboxImage();
+  }
+
+  function closeLightbox(){
+    lightbox.classList.remove('open');
+    lightbox.setAttribute('aria-hidden','true');
+    document.body.style.overflow = '';
+  }
+
+  function lbNextPhoto(){
+    const len = state.renderedPhotos.length;
+    lbIndex = (lbIndex + 1) % len;
+    updateLightboxImage();
+  }
+  function lbPrevPhoto(){
+    const len = state.renderedPhotos.length;
+    lbIndex = (lbIndex - 1 + len) % len;
+    updateLightboxImage();
+  }
+
+  lbFigure.addEventListener('click', closeLightbox);
+  lbPrev.addEventListener('click', e=>{ e.stopPropagation(); lbPrevPhoto(); });
+  lbNext.addEventListener('click', e=>{ e.stopPropagation(); lbNextPhoto(); });
+  lightbox.addEventListener('click', e=>{ if(e.target === lightbox) closeLightbox(); });
+
+  document.addEventListener('keydown', e=>{
+    if(!lightbox.classList.contains('open')) return;
+    if(e.key === 'Escape') closeLightbox();
+    else if(e.key === 'ArrowRight') lbNextPhoto();
+    else if(e.key === 'ArrowLeft') lbPrevPhoto();
+  });
+
+  // basic swipe support for touch devices
+  let touchStartX = null;
+  lightbox.addEventListener('touchstart', e=>{
+    touchStartX = e.touches[0].clientX;
+  }, { passive:true });
+  lightbox.addEventListener('touchend', e=>{
+    if(touchStartX === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if(Math.abs(dx) > 40){ dx < 0 ? lbNextPhoto() : lbPrevPhoto(); }
+    touchStartX = null;
+  }, { passive:true });
+
+  let resizeTimer = null;
+  window.addEventListener('resize', ()=>{
+    if(state.mode !== 'mix' || !state.photos.length) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(()=>{
+      if(getColumnCount() !== state.lastColCount) renderPhotos();
+    }, 180);
+  });
 
   /* ---------------- init from storage ---------------- */
   (async function init(){
