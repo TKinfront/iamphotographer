@@ -289,11 +289,23 @@
     box-shadow:var(--frame-shadow);
     opacity:0;transform:translateY(16px);
     transition:opacity .6s var(--ease), transform .6s var(--ease), box-shadow .3s var(--ease);
+    touch-action:pan-y;
+    user-select:none;
+    -webkit-user-select:none;
   }
   .frame.visible{opacity:1;transform:translateY(0);}
   .collage.mode-rows .frame:hover{transform:translateY(-2px);}
-  .frame img{transition:transform .5s var(--ease);}
+  .frame img{transition:transform .5s var(--ease);-webkit-user-drag:none;}
   .frame:hover img{transform:scale(1.015);}
+  .frame.dragging{
+    cursor:grabbing !important;
+    box-shadow:0 30px 60px -16px rgba(0,0,0,.45);
+    opacity:.92;
+  }
+  .frame.drop-target{
+    outline:2px dashed var(--accent);
+    outline-offset:-2px;
+  }
 
   /* neon frame glow — signature detail */
   [data-theme="neon"] .frame{
@@ -820,9 +832,104 @@ https://…png
     return 1;
   }
 
+  /* ---------------- drag-to-reorder ---------------- */
+  let suppressNextClick = false;
+  let drag = null;
+  let holdTimer = null;
+
+  function startDragTracking(e, frame, idx){
+    if(e.pointerType === 'mouse' && e.button !== 0) return;
+    const rect = frame.getBoundingClientRect();
+    drag = {
+      sourceIndex: idx, frame,
+      startX: e.clientX, startY: e.clientY,
+      offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top,
+      width: rect.width, height: rect.height,
+      holdReady: e.pointerType !== 'touch', // mouse can drag immediately; touch needs a short hold first
+      moved: false, dropTarget: null
+    };
+    if(e.pointerType === 'touch'){
+      holdTimer = setTimeout(()=>{ if(drag) drag.holdReady = true; }, 160);
+    }
+    document.addEventListener('pointermove', onDragMove);
+    document.addEventListener('pointerup', onDragEnd, { once:true });
+    document.addEventListener('pointercancel', onDragEnd, { once:true });
+  }
+
+  function cancelDragSetup(){
+    clearTimeout(holdTimer);
+    document.removeEventListener('pointermove', onDragMove);
+    drag = null;
+  }
+
+  function onDragMove(e){
+    if(!drag) return;
+    const dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+    if(!drag.moved){
+      if(!drag.holdReady){
+        // moving fast before the hold-delay resolved = this is a scroll, not a drag
+        if(Math.abs(dx) > 10 || Math.abs(dy) > 10) cancelDragSetup();
+        return;
+      }
+      if(Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      drag.moved = true;
+      drag.frame.classList.add('dragging');
+      drag.frame.style.position = 'fixed';
+      drag.frame.style.left = rectLeft(drag) + 'px';
+      drag.frame.style.top = rectTop(drag) + 'px';
+      drag.frame.style.width = drag.width + 'px';
+      drag.frame.style.height = drag.height + 'px';
+      drag.frame.style.zIndex = '90';
+      drag.frame.style.pointerEvents = 'none';
+    }
+    e.preventDefault();
+    drag.frame.style.left = (e.clientX - drag.offsetX) + 'px';
+    drag.frame.style.top = (e.clientY - drag.offsetY) + 'px';
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const targetFrame = el ? el.closest('.frame') : null;
+    if(drag.dropTarget && drag.dropTarget !== targetFrame) drag.dropTarget.classList.remove('drop-target');
+    if(targetFrame && targetFrame !== drag.frame){
+      targetFrame.classList.add('drop-target');
+      drag.dropTarget = targetFrame;
+    } else {
+      drag.dropTarget = null;
+    }
+  }
+  function rectLeft(d){ return d.startX - d.offsetX; }
+  function rectTop(d){ return d.startY - d.offsetY; }
+
+  function onDragEnd(){
+    document.removeEventListener('pointermove', onDragMove);
+    clearTimeout(holdTimer);
+    if(!drag) return;
+    const wasDragged = drag.moved;
+    if(drag.dropTarget){
+      drag.dropTarget.classList.remove('drop-target');
+      const targetIdx = parseInt(drag.dropTarget.dataset.idx, 10);
+      const list = state.renderedPhotos;
+      const tmp = list[drag.sourceIndex];
+      list[drag.sourceIndex] = list[targetIdx];
+      list[targetIdx] = tmp;
+    }
+    drag.frame.classList.remove('dragging');
+    drag.frame.style.position = '';
+    drag.frame.style.left = '';
+    drag.frame.style.top = '';
+    drag.frame.style.width = '';
+    drag.frame.style.height = '';
+    drag.frame.style.zIndex = '';
+    drag.frame.style.pointerEvents = '';
+    if(wasDragged){
+      suppressNextClick = true;
+      renderPhotos();
+    }
+    drag = null;
+  }
+
   function buildFrame(photo, idx){
     const frame = document.createElement('div');
     frame.className = 'frame';
+    frame.dataset.idx = idx;
     frame.style.transitionDelay = Math.min(idx*18, 260) + 'ms';
     frame.style.cursor = 'zoom-in';
     const img = document.createElement('img');
@@ -830,9 +937,14 @@ https://…png
     img.alt = photo.name || 'photo';
     img.src = photo.url;
     img.referrerPolicy = 'no-referrer';
+    img.draggable = false;
     img.onerror = () => { frame.style.display = 'none'; };
     frame.appendChild(img);
-    frame.addEventListener('click', ()=> openLightbox(idx));
+    frame.addEventListener('click', ()=>{
+      if(suppressNextClick){ suppressNextClick = false; return; }
+      openLightbox(idx);
+    });
+    frame.addEventListener('pointerdown', (e)=> startDragTracking(e, frame, idx));
     return frame;
   }
 
