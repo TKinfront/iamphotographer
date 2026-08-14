@@ -609,10 +609,14 @@ https://…png
   }
   document.querySelectorAll('.aperture').forEach(svg=> buildLensKaleidoscope(svg));
 
-  /* ---------------- Google API config ---------------- */
+  /* ---------------- Google API config ----------------
+     Replace these two with your own, obtained from Google Cloud Console
+     (see the setup steps: OAuth client ID + a Picker/Drive API key,
+     both restricted to your GitHub Pages origin). Public client IDs and
+     referrer-restricted API keys are meant to live in front-end code. */
   const GOOGLE_CLIENT_ID = '374162526600-ld6k7pf3h8lic2og5i1f9ap65k8vtifh.apps.googleusercontent.com';
   const GOOGLE_API_KEY   = 'AIzaSyD8AKa2kX_yhrTqZ_INRejnDOmG4CYkRPI';
-  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file'; // non-sensitive scope; Picker grants access to the picked folder + its contents
   const GOOGLE_CONFIGURED = !GOOGLE_CLIENT_ID.startsWith('YOUR_') && !GOOGLE_API_KEY.startsWith('YOUR_');
 
   /* ---------------- state ---------------- */
@@ -620,7 +624,7 @@ https://…png
     theme: 'light',
     mode: 'rows',
     photos: [],
-    source: null,
+    source: null, // {type:'drive', folderId} or {type:'links'}
     accessToken: null,
     tokenClient: null,
     pickerLoaded: false
@@ -713,6 +717,30 @@ https://…png
       [a[i],a[j]] = [a[j],a[i]];
     }
     return a;
+  }
+
+  /* ---------------- fetching ---------------- */
+  async function fetchDriveFolder(folderId, accessToken){
+    const fields = encodeURIComponent('files(id,name,mimeType,trashed)');
+    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000`
+      + `&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if(!res.ok){
+      const body = await res.json().catch(()=>({}));
+      const msg = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    const allFiles = data.files || [];
+    const images = allFiles.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
+    if(!allFiles.length) throw new Error('У цій папці нічого не знайдено. Спробуй обрати папку ще раз.');
+    if(!images.length) throw new Error(`У папці є ${allFiles.length} файл(ів), але жоден не розпізнано як зображення.`);
+    return images.map(f => ({
+      id: f.id,
+      name: f.name,
+      url: `https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`
+    }));
   }
 
   function parseLinkList(text){
@@ -837,18 +865,17 @@ https://…png
   async function openFolderPicker(){
     await loadPicker();
     return new Promise((resolve, reject)=>{
-      const view = new google.picker.DocsView()
-        .setIncludeFolders(true)
-        .setSelectFolderEnabled(true);
-
+      const view = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
+        .setSelectFolderEnabled(true)
+        .setIncludeFolders(true);
       const picker = new google.picker.PickerBuilder()
         .setOAuthToken(state.accessToken)
         .setDeveloperKey(GOOGLE_API_KEY)
         .addView(view)
-        .setTitle('Обери папку або фотографії')
+        .setTitle('Обери папку з фото')
         .setCallback((data)=>{
           if(data.action === google.picker.Action.PICKED){
-            resolve(data.docs);
+            resolve(data.docs[0].id);
           } else if(data.action === google.picker.Action.CANCEL){
             reject(new Error('CANCELLED'));
           }
@@ -856,47 +883,6 @@ https://…png
         .build();
       picker.setVisible(true);
     });
-  }
-
-  async function fetchDriveFolder(pickedItems, accessToken){
-    // Якщо вибрано один елемент і це папка:
-    if (pickedItems.length === 1 && pickedItems[0].mimeType === 'application/vnd.google-apps.folder') {
-      const folderId = pickedItems[0].id;
-      const fields = encodeURIComponent('files(id,name,mimeType,trashed)');
-      const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000`
-        + `&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives`;
-      
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-      if(!res.ok){
-        const body = await res.json().catch(()=>({}));
-        const msg = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-      const data = await res.json();
-      const allFiles = data.files || [];
-      const images = allFiles.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
-      if(!allFiles.length) throw new Error('У цій папці нічого не знайдено. Спробуй обрати іншу папку.');
-      if(!images.length) throw new Error(`У папці є ${allFiles.length} файл(ів), але жоден не розпізнано як зображення.`);
-      
-      return images.map(f => ({
-        id: f.id,
-        name: f.name,
-        url: `https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`
-      }));
-    } 
-    
-    // Якщо вибрано файли безпосередньо (або кілька файлів):
-    const images = pickedItems.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
-    if (!images.length) {
-      throw new Error('Обрані елементи не є зображеннями.');
-    }
-
-    return images.map(f => ({
-      id: f.id,
-      name: f.name,
-      url: `https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`
-    }));
   }
 
   async function handleGoogleConnect(){
@@ -911,14 +897,12 @@ https://…png
     try{
       await requestAccessToken();
       driveSignedInHint.style.display = 'block';
-      driveSignedInHint.textContent = 'Увійшли через Google. Обери папку або фото у вікні, що відкрилось.';
-      
-      const pickedItems = await openFolderPicker();
+      driveSignedInHint.textContent = 'Увійшли через Google. Обери папку у вікні, що відкрилось.';
+      const folderId = await openFolderPicker();
       showGallery();
       showSkeletons(12);
-      
-      const photos = await fetchDriveFolder(pickedItems, state.accessToken);
-      state.source = { type:'drive', items: pickedItems };
+      const photos = await fetchDriveFolder(folderId, state.accessToken);
+      state.source = { type:'drive', folderId };
       finishLoad(photos);
     }catch(err){
       if(err && err.message === 'CANCELLED'){ /* user closed the picker, no error needed */ }
