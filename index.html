@@ -375,7 +375,7 @@
       <button class="btn btn-ghost" id="folderTriggerBtn">Підключити папку</button>
       <div class="popover" id="folderPopover">
         <h3>Джерело фото</h3>
-        <p class="sub">Увійди через Google і обери папку на Диску, або встав прямі посилання на зображення.</p>
+        <p class="sub">Увійди через Google і обери фото на Диску (можна одразу декілька), або встав прямі посилання на зображення.</p>
 
         <div class="tabs">
           <button class="tab-btn active" data-tab="drive">Google Drive</button>
@@ -386,9 +386,9 @@
 
         <div class="pane active" data-pane="drive">
           <div class="field" style="text-align:center;">
-            <button class="btn" id="googleSignInBtn" style="width:100%;justify-content:center;">Увійти через Google і обрати папку</button>
+            <button class="btn" id="googleSignInBtn" style="width:100%;justify-content:center;">Увійти через Google і обрати фото</button>
             <div class="hint" id="driveSignedInHint" style="display:none;text-align:center;margin-top:10px;"></div>
-            <div class="hint" style="margin-top:10px;">Google покаже вікно входу, а потім даш дозвіл лише на перегляд Диску. Сайт не отримує пароль і не може нічого змінювати чи видаляти.</div>
+            <div class="hint" style="margin-top:10px;">У вікні вибору зайди в потрібну папку й обери фото — утримуй Ctrl (Cmd на Mac) і клікай, щоб додати одразу декілька. Google покаже вікно входу, а потім даш дозвіл лише на перегляд Диску. Сайт не отримує пароль і не може нічого змінювати чи видаляти.</div>
           </div>
         </div>
 
@@ -720,29 +720,6 @@ https://…png
   }
 
   /* ---------------- fetching ---------------- */
-  async function fetchDriveFolder(folderId, accessToken){
-    const fields = encodeURIComponent('files(id,name,mimeType,trashed)');
-    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000`
-      + `&supportsAllDrives=true&includeItemsFromAllDrives=true&corpora=allDrives`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if(!res.ok){
-      const body = await res.json().catch(()=>({}));
-      const msg = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
-      throw new Error(msg);
-    }
-    const data = await res.json();
-    const allFiles = data.files || [];
-    const images = allFiles.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
-    if(!allFiles.length) throw new Error('У цій папці нічого не знайдено. Спробуй обрати папку ще раз.');
-    if(!images.length) throw new Error(`У папці є ${allFiles.length} файл(ів), але жоден не розпізнано як зображення.`);
-    return images.map(f => ({
-      id: f.id,
-      name: f.name,
-      url: `https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`
-    }));
-  }
-
   function parseLinkList(text){
     const lines = text.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
     if(!lines.length) throw new Error('Додай хоча б одне посилання на зображення.');
@@ -862,20 +839,21 @@ https://…png
     });
   }
 
-  async function openFolderPicker(){
+  async function openPhotoPicker(){
     await loadPicker();
     return new Promise((resolve, reject)=>{
       const view = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
-        .setSelectFolderEnabled(true)
-        .setIncludeFolders(true);
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(false);
       const picker = new google.picker.PickerBuilder()
         .setOAuthToken(state.accessToken)
         .setDeveloperKey(GOOGLE_API_KEY)
         .addView(view)
-        .setTitle('Обери папку з фото')
+        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+        .setTitle('Зайди в потрібну папку і обери фото (Ctrl/Cmd + клік — декілька)')
         .setCallback((data)=>{
           if(data.action === google.picker.Action.PICKED){
-            resolve(data.docs[0].id);
+            resolve(data.docs || []);
           } else if(data.action === google.picker.Action.CANCEL){
             reject(new Error('CANCELLED'));
           }
@@ -893,23 +871,28 @@ https://…png
     formError.classList.remove('show');
     googleSignInBtn.disabled = true;
     const wasSignedIn = !!state.accessToken;
-    googleSignInBtn.textContent = wasSignedIn ? 'Відкриваємо вибір папки…' : 'Вхід через Google…';
+    googleSignInBtn.textContent = wasSignedIn ? 'Відкриваємо вибір фото…' : 'Вхід через Google…';
     try{
       await requestAccessToken();
       driveSignedInHint.style.display = 'block';
-      driveSignedInHint.textContent = 'Увійшли через Google. Обери папку у вікні, що відкрилось.';
-      const folderId = await openFolderPicker();
+      driveSignedInHint.textContent = 'Увійшли через Google. Обери фото у вікні, що відкрилось.';
+      const docs = await openPhotoPicker();
+      if(!docs.length) throw new Error('Жодного фото не обрано.');
       showGallery();
-      showSkeletons(12);
-      const photos = await fetchDriveFolder(folderId, state.accessToken);
-      state.source = { type:'drive', folderId };
+      showSkeletons(Math.min(docs.length,12));
+      const photos = docs.map(d => ({
+        id: d.id,
+        name: d.name,
+        url: `https://drive.google.com/thumbnail?id=${d.id}&sz=w1600`
+      }));
+      state.source = { type:'drive' };
       finishLoad(photos);
     }catch(err){
       if(err && err.message === 'CANCELLED'){ /* user closed the picker, no error needed */ }
       else failLoad(err && err.message);
     }finally{
       googleSignInBtn.disabled = false;
-      googleSignInBtn.textContent = state.accessToken ? 'Обрати іншу папку в Google Drive' : 'Увійти через Google і обрати папку';
+      googleSignInBtn.textContent = state.accessToken ? 'Обрати ще фото в Google Drive' : 'Увійти через Google і обрати фото';
     }
   }
   googleSignInBtn.addEventListener('click', handleGoogleConnect);
