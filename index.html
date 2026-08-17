@@ -347,7 +347,7 @@
   .lb-figure{
     max-width:100%;max-height:100%;margin:0;
     display:flex;align-items:center;justify-content:center;
-    cursor:zoom-out;
+    cursor:default;
   }
   .lb-figure img{
     max-width:88vw;max-height:82vh;
@@ -442,20 +442,32 @@
       <button class="btn btn-ghost" id="folderTriggerBtn">Підключити папку</button>
       <div class="popover" id="folderPopover">
         <h3>Джерело фото</h3>
-        <p class="sub">Увійди через Google і обери фото на Диску (можна одразу декілька), або встав прямі посилання на зображення.</p>
+        <p class="sub">Обери спосіб: вся публічна папка одразу, вибір окремих фото через Google, або прямі посилання.</p>
 
         <div class="tabs">
+          <button class="tab-btn" data-tab="folder">Публічна папка</button>
           <button class="tab-btn active" data-tab="drive">Google Drive</button>
           <button class="tab-btn" data-tab="links">Посилання</button>
         </div>
 
         <div class="form-error" id="formError"></div>
 
+        <div class="pane" data-pane="folder">
+          <div class="field">
+            <label for="publicFolderLink">Лінк на публічну папку</label>
+            <input id="publicFolderLink" type="text" placeholder="https://drive.google.com/drive/folders/…" autocomplete="off">
+            <div class="hint">Папка має бути відкрита за посиланням («Усі, хто має посилання» → «Читання»). Тоді підвантажаться одразу всі фото з неї — жодного тапання по кожному знімку, ідеально з телефона.</div>
+          </div>
+          <div class="popover-actions">
+            <button class="btn" id="connectFolderBtn">Показати галерею</button>
+          </div>
+        </div>
+
         <div class="pane active" data-pane="drive">
           <div class="field" style="text-align:center;">
             <button class="btn" id="googleSignInBtn" style="width:100%;justify-content:center;">Увійти через Google і обрати фото</button>
             <div class="hint" id="driveSignedInHint" style="display:none;text-align:center;margin-top:10px;"></div>
-            <div class="hint" style="margin-top:10px;">У вікні вибору зайди в потрібну папку й обери фото — утримуй Ctrl (Cmd на Mac) і клікай, щоб додати одразу декілька. Google покаже вікно входу, а потім даш дозвіл лише на перегляд Диску. Сайт не отримує пароль і не може нічого змінювати чи видаляти.</div>
+            <div class="hint" style="margin-top:10px;">У вікні вибору зайди в потрібну папку й тапай/клікай кожне фото, яке хочеш додати — кожен тап ставить галочку, і так можна назбирати скільки завгодно, без Ctrl чи інших клавіш. Google спершу покаже вхід і дозвіл лише на перегляд Диску — без пароля і без можливості щось змінити чи видалити.</div>
           </div>
         </div>
 
@@ -725,6 +737,7 @@ https://…png
   const heroConnectBtn = $('#heroConnectBtn');
   const popover = $('#folderPopover');
   const googleSignInBtn = $('#googleSignInBtn');
+  const connectFolderBtn = $('#connectFolderBtn');
   const connectLinksBtn = $('#connectLinksBtn');
   const driveSignedInHint = $('#driveSignedInHint');
   const formError = $('#formError');
@@ -808,6 +821,35 @@ https://…png
     const lines = text.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
     if(!lines.length) throw new Error('Додай хоча б одне посилання на зображення.');
     return lines.map((url,i)=>({ id:'link-'+i, name:'photo-'+i, url }));
+  }
+
+  function extractFolderId(url){
+    const patterns = [ /\/folders\/([a-zA-Z0-9_-]+)/, /[?&]id=([a-zA-Z0-9_-]+)/ ];
+    for(const p of patterns){
+      const m = url.match(p);
+      if(m) return m[1];
+    }
+    return null;
+  }
+
+  async function fetchPublicFolder(folderId){
+    const fields = encodeURIComponent('files(id,name,mimeType)');
+    const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed = false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000&key=${encodeURIComponent(GOOGLE_API_KEY)}`;
+    const res = await fetch(url);
+    if(!res.ok){
+      const body = await res.json().catch(()=>({}));
+      const msg = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    const files = data.files || [];
+    if(!files.length) throw new Error('У цій папці не знайдено зображень — переконайся, що вона відкрита за посиланням («Усі, хто має посилання»).');
+    return files.map(f => ({
+      id: f.id,
+      name: f.name,
+      url: `https://drive.google.com/thumbnail?id=${f.id}&sz=w1600`
+    }));
   }
 
   /* ---------------- render ---------------- */
@@ -1124,6 +1166,31 @@ https://…png
   }
   googleSignInBtn.addEventListener('click', handleGoogleConnect);
 
+  /* ---------------- public-folder connect flow (no sign-in needed) ---------------- */
+  async function handlePublicFolderConnect(){
+    formError.classList.remove('show');
+    connectFolderBtn.textContent = 'Завантаження…';
+    connectFolderBtn.disabled = true;
+    try{
+      const link = $('#publicFolderLink').value.trim();
+      if(!link) throw new Error('Встав лінк на публічну Google Drive папку.');
+      const folderId = extractFolderId(link);
+      if(!folderId) throw new Error('Не вдалось розпізнати ID папки з цього посилання.');
+      showGallery();
+      showSkeletons(12);
+      const photos = await fetchPublicFolder(folderId);
+      saveSetting('publicFolderLink', link);
+      state.source = { type:'public-folder', folderId };
+      finishLoad(photos);
+    }catch(err){
+      failLoad(err.message);
+    }finally{
+      connectFolderBtn.textContent = 'Показати галерею';
+      connectFolderBtn.disabled = false;
+    }
+  }
+  connectFolderBtn.addEventListener('click', handlePublicFolderConnect);
+
   /* ---------------- direct-links connect flow ---------------- */
   async function handleLinksConnect(){
     formError.classList.remove('show');
@@ -1238,6 +1305,8 @@ https://…png
     if(savedMode) setMode(savedMode, {skipRerender:true});
     const savedLinks = await loadSetting('linkList');
     if(savedLinks) $('#linkList').value = savedLinks;
+    const savedFolderLink = await loadSetting('publicFolderLink');
+    if(savedFolderLink) $('#publicFolderLink').value = savedFolderLink;
     if(!GOOGLE_CONFIGURED){
       googleSignInBtn.title = 'Власник сайту ще не додав Client ID та API ключ Google у код';
     }
