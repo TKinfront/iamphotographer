@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IAMPHOTOGRAPHER</title>
+<title>MyVision</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -161,7 +161,9 @@
     font-size:12.5px;font-weight:600;letter-spacing:.4px;
     background:var(--text);color:var(--bg);
     transition:transform .2s var(--ease), opacity .2s var(--ease);
+    white-space:nowrap;flex-shrink:0;
   }
+  .btn svg{width:15px;height:15px;flex-shrink:0;}
   .btn:hover{ opacity:.85; }
   .btn:active{ transform:scale(.97); }
   .btn-ghost{
@@ -391,21 +393,30 @@
 
   /* mobile bar tweaks */
   @media(max-width:640px){
-    header{padding:0 12px;gap:10px;}
-    .brand-word{font-size:16px;}
+    header{padding:0 10px;gap:8px;}
+    .brand{gap:7px;}
+    .brand-word{font-size:15px;letter-spacing:1px;}
+    .bar-controls{gap:6px;}
+    .pill-group{padding:2px;gap:1px;}
+    .pill-btn{padding:7px;}
     .pill-btn span.label{display:none;}
-    .pill-btn{padding:8px;}
+    #folderTriggerBtn{padding:9px;aspect-ratio:1;justify-content:center;}
+    #folderTriggerBtn span.label{display:none;}
+    .icon-btn{width:32px;height:32px;}
+  }
+  @media(max-width:380px){
+    .brand-word{display:none;}
   }
 </style>
 </head>
 <body data-theme="light">
 
 <header>
-  <button class="brand" id="brandResetBtn" aria-label="IAMPHOTOGRAPHER — на початок" type="button">
+  <button class="brand" id="brandResetBtn" aria-label="MyVision — на початок" type="button">
     <svg class="brand-mark aperture" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <g id="apertureBladesTop"></g>
     </svg>
-    <span class="brand-word">IAMPHOTOGRAPHER</span>
+    <span class="brand-word">MyVision</span>
   </button>
 
   <div class="bar-spacer"></div>
@@ -439,7 +450,10 @@
     </div>
 
     <div class="popover-wrap">
-      <button class="btn btn-ghost" id="folderTriggerBtn">Підключити папку</button>
+      <button class="btn btn-ghost" id="folderTriggerBtn">
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1.5 3.5a1 1 0 011-1h3.4l1.1 1.3h6.5a1 1 0 011 1V12a1 1 0 01-1 1h-11a1 1 0 01-1-1V3.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        <span class="label">Підключити папку</span>
+      </button>
       <div class="popover" id="folderPopover">
         <h3>Джерело фото</h3>
         <p class="sub">Обери спосіб: вся публічна папка одразу, вибір окремих фото через Google, або прямі посилання.</p>
@@ -492,7 +506,7 @@ https://…png
   <svg class="hero-aperture aperture aperture-spin" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <g id="apertureBladesHero"></g>
   </svg>
-  <h1>IAMPHOTOGRAPHER</h1>
+  <h1>MyVision</h1>
   <p>Мінімальний перегляд твоїх фото у вигляді колажу. Підключи Google Drive папку — і почни гортати.</p>
   <button class="btn" id="heroConnectBtn">Підключити папку</button>
 </div>
@@ -501,7 +515,7 @@ https://…png
   <div class="collage mode-rows" id="collage"></div>
 </main>
 
-<footer id="footer" style="display:none;">IAMPHOTOGRAPHER — мінімалізм для перегляду світлин</footer>
+<footer id="footer" style="display:none;">MyVision — мінімалізм для перегляду світлин</footer>
 
 <div class="lightbox" id="lightbox" aria-hidden="true">
   <button class="lb-arrow lb-prev" id="lbPrev" aria-label="Попереднє фото">
@@ -641,7 +655,7 @@ https://…png
     enginePath.setAttribute('textLength', (circumference*0.96).toFixed(1));
     enginePath.setAttribute('lengthAdjust','spacingAndGlyphs');
     enginePath.setAttribute('dominant-baseline','middle');
-    enginePath.textContent = 'IAMPHOTOGRAPHER LENS   \u00D882mm   ZOOM 16-35mm 1:2.8';
+    enginePath.textContent = 'MYVISION LENS   \u00D882mm   ZOOM 16-35mm 1:2.8';
     engrave.appendChild(enginePath);
     g.appendChild(engrave);
 
@@ -1041,7 +1055,8 @@ https://…png
     heroSection.style.display = 'none';
     mainSection.style.display = 'block';
     footer.style.display = 'block';
-    folderTriggerBtn.textContent = 'Змінити папку';
+    folderTriggerBtn.querySelector('.label').textContent = 'Змінити папку';
+    folderTriggerBtn.title = 'Змінити папку';
     metaTag.style.display = 'inline-flex';
   }
 
@@ -1053,7 +1068,8 @@ https://…png
     mainSection.style.display = 'none';
     footer.style.display = 'none';
     metaTag.style.display = 'none';
-    folderTriggerBtn.textContent = 'Підключити папку';
+    folderTriggerBtn.querySelector('.label').textContent = 'Підключити папку';
+    folderTriggerBtn.title = 'Підключити папку';
     heroSection.style.display = 'flex';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1073,7 +1089,8 @@ https://…png
       mainSection.style.display = 'none';
       footer.style.display = 'none';
       heroSection.style.display = 'flex';
-      folderTriggerBtn.textContent = 'Підключити папку';
+      folderTriggerBtn.querySelector('.label').textContent = 'Підключити папку';
+      folderTriggerBtn.title = 'Підключити папку';
     }
   }
 
