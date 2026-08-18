@@ -114,7 +114,9 @@
     font-size:19px;
     letter-spacing:1.5px;
     white-space:nowrap;
+    text-transform:uppercase;
   }
+  .accent-letter{ color:var(--accent); }
   .bar-spacer{flex:1;}
   .bar-controls{display:flex;align-items:center;gap:8px;}
 
@@ -199,6 +201,11 @@
   .popover h3{
     font-family:var(--font-display);font-weight:700;font-size:16px;letter-spacing:.3px;margin-bottom:4px;
   }
+  .cols-popover{ width:min(220px, 88vw); padding:14px; }
+  .cols-popover h3{ margin-bottom:10px; }
+  .cols-pill-group{ display:flex; width:100%; }
+  .cols-pill-group .pill-btn{ flex:1; justify-content:center; font-size:12px; }
+  @media(max-width:640px){ .cols-4-only{ display:none; } }
   .popover .sub{font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;}
   .tabs{display:flex;gap:4px;background:var(--control-bg);border-radius:8px;padding:3px;margin-bottom:14px;}
   .tab-btn{flex:1;text-align:center;padding:7px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--text-dim);}
@@ -244,6 +251,7 @@
     font-size:clamp(34px, 7vw, 64px);
     letter-spacing:1px;
     line-height:.95;
+    text-transform:uppercase;
   }
   .hero p{
     max-width:440px;color:var(--text-dim);font-size:15px;line-height:1.6;
@@ -275,11 +283,8 @@
   /* ROWS mode: uniform grid */
   .collage.mode-rows{
     display:grid;gap:14px;
-    grid-template-columns:repeat(1,1fr);
+    grid-template-columns:repeat(var(--cols,1),1fr);
   }
-  @media(min-width:560px){ .collage.mode-rows{grid-template-columns:repeat(2,1fr);} }
-  @media(min-width:900px){ .collage.mode-rows{grid-template-columns:repeat(3,1fr);} }
-  @media(min-width:1280px){ .collage.mode-rows{grid-template-columns:repeat(4,1fr);} }
   .collage.mode-rows .frame{aspect-ratio:1/1;}
   .collage.mode-rows .frame img{width:100%;height:100%;object-fit:cover;}
 
@@ -334,6 +339,24 @@
   footer{
     text-align:center;padding:30px 20px 50px;
     font-family:var(--font-mono);font-size:11px;color:var(--text-dim);letter-spacing:.4px;
+  }
+
+  /* ---------- Auto-scroll button ---------- */
+  .autoscroll-btn{
+    position:fixed;right:20px;bottom:24px;z-index:60;
+    width:48px;height:48px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--text);color:var(--bg);
+    box-shadow:0 14px 34px -10px rgba(0,0,0,.4);
+    transition:transform .2s var(--ease), opacity .2s var(--ease);
+  }
+  .autoscroll-btn:hover{ transform:scale(1.06); }
+  .autoscroll-btn:active{ transform:scale(.95); }
+  .autoscroll-btn svg{width:18px;height:18px;}
+  .autoscroll-btn.playing svg{ animation:autoscrollPulse 1.4s ease-in-out infinite; }
+  @keyframes autoscrollPulse{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(3px);} }
+  @media(max-width:640px){
+    .autoscroll-btn{right:14px;bottom:18px;width:44px;height:44px;}
   }
 
   /* ---------- Lightbox ---------- */
@@ -416,7 +439,7 @@
     <svg class="brand-mark aperture" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <g id="apertureBladesTop"></g>
     </svg>
-    <span class="brand-word">MyVision</span>
+    <span class="brand-word"><span class="accent-letter">M</span>y<span class="accent-letter">V</span>ision</span>
   </button>
 
   <div class="bar-spacer"></div>
@@ -435,6 +458,22 @@
         <svg viewBox="0 0 16 16" fill="none"><rect x="1.5" y="1.5" width="5.5" height="9" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="1.5" width="5.5" height="4.5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="8" width="5.5" height="6.5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
         <span class="label">Mix</span>
       </button>
+    </div>
+
+    <div class="popover-wrap">
+      <button class="icon-btn" id="colsTriggerBtn" title="Кількість стовпчиків" aria-label="Кількість стовпчиків">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1.5" y="1.5" width="3" height="13" rx="0.8" stroke="currentColor" stroke-width="1.3"/><rect x="6.5" y="1.5" width="3" height="13" rx="0.8" stroke="currentColor" stroke-width="1.3"/><rect x="11.5" y="1.5" width="3" height="13" rx="0.8" stroke="currentColor" stroke-width="1.3"/></svg>
+      </button>
+      <div class="popover cols-popover" id="colsPopover">
+        <h3>Стовпчики</h3>
+        <div class="pill-group cols-pill-group" id="colsPillGroup" role="group" aria-label="Кількість стовпчиків">
+          <button class="pill-btn active" data-cols="auto">Авто</button>
+          <button class="pill-btn" data-cols="1">1</button>
+          <button class="pill-btn" data-cols="2">2</button>
+          <button class="pill-btn" data-cols="3">3</button>
+          <button class="pill-btn cols-4-only" data-cols="4">4</button>
+        </div>
+      </div>
     </div>
 
     <div class="pill-group" role="group" aria-label="Тема">
@@ -506,8 +545,8 @@ https://…png
   <svg class="hero-aperture aperture aperture-spin" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <g id="apertureBladesHero"></g>
   </svg>
-  <h1>MyVision</h1>
-  <p>Мінімальний перегляд твоїх фото у вигляді колажу. Підключи Google Drive папку — і почни гортати.</p>
+  <h1><span class="accent-letter">M</span>y<span class="accent-letter">V</span>ision</h1>
+  <p>Переглядай свої фото у вигляді колажу. Підключи Google Drive папку — і почни гортати.</p>
   <button class="btn" id="heroConnectBtn">Підключити папку</button>
 </div>
 
@@ -516,6 +555,10 @@ https://…png
 </main>
 
 <footer id="footer" style="display:none;">MyVision — мінімалізм для перегляду світлин</footer>
+
+<button class="autoscroll-btn" id="autoscrollBtn" style="display:none;" title="Плавне автогортання вниз" aria-label="Плавне автогортання вниз">
+  <svg id="autoscrollIcon" viewBox="0 0 16 16" fill="none"><path d="M5 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" transform="rotate(90 8 8)"/></svg>
+</button>
 
 <div class="lightbox" id="lightbox" aria-hidden="true">
   <button class="lb-arrow lb-prev" id="lbPrev" aria-label="Попереднє фото">
@@ -733,6 +776,7 @@ https://…png
     renderedPhotos: [],
     mixOrder: null,
     lastColCount: null,
+    userColCount: null, // null = automatic/responsive; otherwise manual 1-4
     source: null, // {type:'drive', folderId} or {type:'links'}
     accessToken: null,
     tokenClient: null,
@@ -750,6 +794,8 @@ https://…png
   const folderTriggerBtn = $('#folderTriggerBtn');
   const heroConnectBtn = $('#heroConnectBtn');
   const popover = $('#folderPopover');
+  const colsTriggerBtn = $('#colsTriggerBtn');
+  const colsPopover = $('#colsPopover');
   const googleSignInBtn = $('#googleSignInBtn');
   const connectFolderBtn = $('#connectFolderBtn');
   const connectLinksBtn = $('#connectLinksBtn');
@@ -802,8 +848,22 @@ https://…png
   heroConnectBtn.addEventListener('click', openPopover);
   document.addEventListener('click', e=>{
     if(!popover.contains(e.target) && e.target!==folderTriggerBtn && e.target!==heroConnectBtn) closePopover();
+    if(!colsPopover.contains(e.target) && e.target!==colsTriggerBtn && !colsTriggerBtn.contains(e.target)) colsPopover.classList.remove('open');
   });
   popover.addEventListener('click', e=> e.stopPropagation());
+  colsPopover.addEventListener('click', e=> e.stopPropagation());
+  colsTriggerBtn.addEventListener('click', e=>{ e.stopPropagation(); colsPopover.classList.toggle('open'); });
+
+  document.querySelectorAll('#colsPillGroup .pill-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('#colsPillGroup .pill-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const val = btn.dataset.cols;
+      state.userColCount = val === 'auto' ? null : parseInt(val, 10);
+      saveSetting('userColCount', state.userColCount);
+      if(state.photos.length) renderPhotos();
+    });
+  });
 
   document.querySelectorAll('.tab-btn').forEach(tb=>{
     tb.addEventListener('click', ()=>{
@@ -881,6 +941,11 @@ https://…png
   }
 
   function getColumnCount(){
+    const isMobile = window.innerWidth <= 640;
+    if(state.userColCount){
+      const maxAllowed = isMobile ? 3 : 4;
+      return Math.min(state.userColCount, maxAllowed);
+    }
     const w = window.innerWidth;
     if(w >= 1280) return 4;
     if(w >= 900) return 3;
@@ -1034,6 +1099,9 @@ https://…png
         observer.observe(frame);
       });
     } else {
+      const colCount = getColumnCount();
+      state.lastColCount = colCount;
+      collageEl.style.setProperty('--cols', colCount);
       list.forEach((photo, idx)=>{
         const frame = buildFrame(photo, idx);
         collageEl.appendChild(frame);
@@ -1058,22 +1126,61 @@ https://…png
     folderTriggerBtn.querySelector('.label').textContent = 'Змінити папку';
     folderTriggerBtn.title = 'Змінити папку';
     metaTag.style.display = 'inline-flex';
+    autoscrollBtn.style.display = 'flex';
   }
 
   function resetToStart(){
     closePopover();
+    stopAutoScroll();
     state.photos = [];
     state.source = null;
     collageEl.innerHTML = '';
     mainSection.style.display = 'none';
     footer.style.display = 'none';
     metaTag.style.display = 'none';
+    autoscrollBtn.style.display = 'none';
     folderTriggerBtn.querySelector('.label').textContent = 'Підключити папку';
     folderTriggerBtn.title = 'Підключити папку';
     heroSection.style.display = 'flex';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   $('#brandResetBtn').addEventListener('click', resetToStart);
+
+  /* ---------------- auto-scroll ---------------- */
+  const autoscrollBtn = $('#autoscrollBtn');
+  const autoscrollIcon = $('#autoscrollIcon');
+  const ICON_PLAY = '<path d="M5 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" transform="rotate(90 8 8)"/>';
+  const ICON_PAUSE = '<rect x="4" y="3" width="2.6" height="10" rx="1" fill="currentColor"/><rect x="9.4" y="3" width="2.6" height="10" rx="1" fill="currentColor"/>';
+  let autoScrollRAF = null;
+  const AUTO_SCROLL_SPEED = 0.7; // px per animation frame
+
+  function autoScrollStep(){
+    window.scrollBy(0, AUTO_SCROLL_SPEED);
+    const atBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 4;
+    if(atBottom){ stopAutoScroll(); return; }
+    autoScrollRAF = requestAnimationFrame(autoScrollStep);
+  }
+
+  function startAutoScroll(){
+    autoscrollBtn.classList.add('playing');
+    autoscrollIcon.innerHTML = ICON_PAUSE;
+    autoScrollRAF = requestAnimationFrame(autoScrollStep);
+  }
+  function stopAutoScroll(){
+    if(autoScrollRAF) cancelAnimationFrame(autoScrollRAF);
+    autoScrollRAF = null;
+    autoscrollBtn.classList.remove('playing');
+    autoscrollIcon.innerHTML = ICON_PLAY;
+  }
+  autoscrollBtn.addEventListener('click', ()=>{
+    autoScrollRAF ? stopAutoScroll() : startAutoScroll();
+  });
+  // pause automatically if the person scrolls or swipes themselves
+  ['wheel','touchstart'].forEach(evt=>{
+    window.addEventListener(evt, (e)=>{
+      if(autoScrollRAF && !autoscrollBtn.contains(e.target)) stopAutoScroll();
+    }, { passive:true });
+  });
 
   function finishLoad(photos){
     state.photos = photos;
@@ -1307,7 +1414,7 @@ https://…png
 
   let resizeTimer = null;
   window.addEventListener('resize', ()=>{
-    if(state.mode !== 'mix' || !state.photos.length) return;
+    if(!state.photos.length) return;
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(()=>{
       if(getColumnCount() !== state.lastColCount) renderPhotos();
@@ -1320,6 +1427,15 @@ https://…png
     if(savedTheme) setTheme(savedTheme);
     const savedMode = await loadSetting('mode');
     if(savedMode) setMode(savedMode, {skipRerender:true});
+    const savedCols = await loadSetting('userColCount');
+    if(savedCols !== null && savedCols !== undefined){
+      state.userColCount = savedCols;
+      const match = document.querySelector(`#colsPillGroup .pill-btn[data-cols="${savedCols === null ? 'auto' : savedCols}"]`);
+      if(match){
+        document.querySelectorAll('#colsPillGroup .pill-btn').forEach(b=>b.classList.remove('active'));
+        match.classList.add('active');
+      }
+    }
     const savedLinks = await loadSetting('linkList');
     if(savedLinks) $('#linkList').value = savedLinks;
     const savedFolderLink = await loadSetting('publicFolderLink');
