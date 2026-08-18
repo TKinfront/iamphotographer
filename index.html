@@ -348,10 +348,13 @@
     display:flex;align-items:center;justify-content:center;
     background:var(--text);color:var(--bg);
     box-shadow:0 14px 34px -10px rgba(0,0,0,.4);
-    transition:transform .2s var(--ease), opacity .2s var(--ease);
+    opacity:.55;
+    transition:transform .2s var(--ease), opacity .25s var(--ease);
   }
-  .autoscroll-btn:hover{ transform:scale(1.06); }
+  .autoscroll-btn:hover{ transform:scale(1.06); opacity:1; }
   .autoscroll-btn:active{ transform:scale(.95); }
+  .autoscroll-btn.playing{ opacity:.85; }
+  .autoscroll-btn.scroll-fade{ opacity:0; pointer-events:none; }
   .autoscroll-btn svg{width:18px;height:18px;}
   .autoscroll-btn.playing svg{ animation:autoscrollPulse 1.4s ease-in-out infinite; }
   @keyframes autoscrollPulse{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(3px);} }
@@ -1156,7 +1159,8 @@ https://…png
 
   function autoScrollStep(){
     window.scrollBy(0, AUTO_SCROLL_SPEED);
-    const atBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 4;
+    const doc = document.scrollingElement || document.documentElement;
+    const atBottom = window.innerHeight + window.scrollY >= doc.scrollHeight - 4;
     if(atBottom){ stopAutoScroll(); return; }
     autoScrollRAF = requestAnimationFrame(autoScrollStep);
   }
@@ -1164,6 +1168,7 @@ https://…png
   function startAutoScroll(){
     autoscrollBtn.classList.add('playing');
     autoscrollIcon.innerHTML = ICON_PAUSE;
+    document.documentElement.style.scrollBehavior = 'auto'; // let our own rAF loop drive scrolling, not the browser's smooth-scroll
     autoScrollRAF = requestAnimationFrame(autoScrollStep);
   }
   function stopAutoScroll(){
@@ -1171,6 +1176,7 @@ https://…png
     autoScrollRAF = null;
     autoscrollBtn.classList.remove('playing');
     autoscrollIcon.innerHTML = ICON_PLAY;
+    document.documentElement.style.scrollBehavior = '';
   }
   autoscrollBtn.addEventListener('click', ()=>{
     autoScrollRAF ? stopAutoScroll() : startAutoScroll();
@@ -1181,6 +1187,14 @@ https://…png
       if(autoScrollRAF && !autoscrollBtn.contains(e.target)) stopAutoScroll();
     }, { passive:true });
   });
+  // fade the button out while manually scrolling, bring it back once scrolling settles
+  let scrollFadeTimer = null;
+  window.addEventListener('scroll', ()=>{
+    if(autoScrollRAF) return; // our own auto-scroll is driving this — keep the button visible
+    autoscrollBtn.classList.add('scroll-fade');
+    clearTimeout(scrollFadeTimer);
+    scrollFadeTimer = setTimeout(()=> autoscrollBtn.classList.remove('scroll-fade'), 550);
+  }, { passive:true });
 
   function finishLoad(photos){
     state.photos = photos;
