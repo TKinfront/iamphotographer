@@ -120,7 +120,7 @@
   .bar-spacer{flex:1;}
   .bar-controls{display:flex;align-items:center;gap:8px;}
   .bar-primary{display:flex;align-items:center;gap:8px;}
-  .hamburger-btn{ display:none; }
+  .icon-btn.hamburger-btn{ display:none; }
 
   /* generic pill/segmented buttons */
   .pill-group{
@@ -421,11 +421,11 @@
   }
 
   /* mobile bar tweaks */
-  @media(max-width:640px){
+  @media(max-width:900px){
     header{padding:0 10px;gap:8px;}
     .brand{gap:7px;}
     .brand-word{font-size:15px;letter-spacing:1px;}
-    .hamburger-btn{ display:flex; }
+    .icon-btn.hamburger-btn{ display:flex; }
 
     /* always-visible primary controls: compact, icon-only */
     .bar-primary{ gap:6px; }
@@ -1214,13 +1214,33 @@ https://…png
   const ICON_PLAY = '<path d="M5 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" transform="rotate(90 8 8)"/>';
   const ICON_PAUSE = '<rect x="4" y="3" width="2.6" height="10" rx="1" fill="currentColor"/><rect x="9.4" y="3" width="2.6" height="10" rx="1" fill="currentColor"/>';
   let autoScrollRAF = null;
-  const AUTO_SCROLL_SPEED = 1.4; // px per animation frame
+  let flick = null; // {phase:'flick'|'pause', phaseStart, distance, applied}
 
-  function autoScrollStep(){
-    window.scrollBy(0, AUTO_SCROLL_SPEED);
+  const FLICK_DURATION = 620;   // ms — the fast swipe itself
+  const PAUSE_DURATION = 480;   // ms — pause, like repositioning a finger for the next swipe
+  const flickDistance = () => window.innerHeight * 0.62;
+  const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+
+  function autoScrollStep(ts){
+    if(!flick) return;
     const doc = document.scrollingElement || document.documentElement;
     const atBottom = window.innerHeight + window.scrollY >= doc.scrollHeight - 4;
     if(atBottom){ stopAutoScroll(); return; }
+
+    if(flick.phase === 'flick'){
+      const t = Math.min((ts - flick.phaseStart) / FLICK_DURATION, 1);
+      const target = easeOutCubic(t) * flick.distance;
+      const delta = target - flick.applied;
+      if(delta > 0){ window.scrollBy(0, delta); flick.applied = target; }
+      if(t >= 1){ flick.phase = 'pause'; flick.phaseStart = ts; }
+    } else {
+      if(ts - flick.phaseStart >= PAUSE_DURATION){
+        flick.phase = 'flick';
+        flick.phaseStart = ts;
+        flick.distance = flickDistance();
+        flick.applied = 0;
+      }
+    }
     autoScrollRAF = requestAnimationFrame(autoScrollStep);
   }
 
@@ -1228,11 +1248,13 @@ https://…png
     autoscrollBtn.classList.add('playing');
     autoscrollIcon.innerHTML = ICON_PAUSE;
     document.documentElement.style.scrollBehavior = 'auto'; // let our own rAF loop drive scrolling, not the browser's smooth-scroll
+    flick = { phase:'flick', phaseStart: performance.now(), distance: flickDistance(), applied: 0 };
     autoScrollRAF = requestAnimationFrame(autoScrollStep);
   }
   function stopAutoScroll(){
     if(autoScrollRAF) cancelAnimationFrame(autoScrollRAF);
     autoScrollRAF = null;
+    flick = null;
     autoscrollBtn.classList.remove('playing');
     autoscrollIcon.innerHTML = ICON_PLAY;
     document.documentElement.style.scrollBehavior = '';
