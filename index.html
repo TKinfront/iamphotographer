@@ -317,11 +317,11 @@
   .collage.mode-mix{
     display:flex;
     align-items:flex-start;
-    gap:var(--gap,14px);
+    gap:var(--gap,6px);
   }
   .collage.mode-mix .mix-col{
     display:flex;flex-direction:column;
-    gap:var(--gap,14px);
+    gap:var(--gap,6px);
     flex:1 1 0;
     min-width:0;
   }
@@ -330,7 +330,7 @@
 
   /* ROWS mode: uniform grid */
   .collage.mode-rows{
-    display:grid;gap:var(--gap,14px);
+    display:grid;gap:var(--gap,6px);
     grid-template-columns:repeat(var(--cols,1),minmax(0,1fr));
   }
   .collage.mode-rows .frame{aspect-ratio:1/1;min-width:0;}
@@ -642,9 +642,9 @@ https://…png
         <div class="gap-control">
           <div class="gap-label-row">
             <label for="gapSlider">Відстань між фото</label>
-            <span class="gap-value" id="gapValue">14px</span>
+            <span class="gap-value" id="gapValue">6px</span>
           </div>
-          <input type="range" id="gapSlider" class="gap-slider" min="0" max="32" step="2" value="14">
+          <input type="range" id="gapSlider" class="gap-slider" min="0" max="32" step="2" value="6">
         </div>
       </div>
     </div>
