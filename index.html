@@ -40,6 +40,7 @@
     --control-bg:rgba(19,18,16,.05);
     --control-bg-hover:rgba(19,18,16,.09);
     --frame-shadow:0 1px 2px rgba(20,20,15,.08),0 8px 20px -12px rgba(20,20,15,.18);
+    --frame-shadow-mobile:0 0.5px 1px rgba(20,20,15,.08),0 4px 10px -8px rgba(20,20,15,.18);
     --skeleton:linear-gradient(100deg, rgba(19,18,16,.05) 30%, rgba(19,18,16,.10) 45%, rgba(19,18,16,.05) 60%);
   }
   [data-theme="dark"]{
@@ -54,6 +55,7 @@
     --control-bg:rgba(237,237,233,.06);
     --control-bg-hover:rgba(237,237,233,.11);
     --frame-shadow:0 1px 2px rgba(0,0,0,.4),0 10px 24px -14px rgba(0,0,0,.6);
+    --frame-shadow-mobile:0 0.5px 1px rgba(0,0,0,.4),0 5px 12px -10px rgba(0,0,0,.6);
     --skeleton:linear-gradient(100deg, rgba(237,237,233,.04) 30%, rgba(237,237,233,.09) 45%, rgba(237,237,233,.04) 60%);
   }
   [data-theme="neon"]{
@@ -70,6 +72,7 @@
     --neon-a:#38F5DD;
     --neon-b:#FF3EC0;
     --frame-shadow:0 1px 2px rgba(0,0,0,.5);
+    --frame-shadow-mobile:0 0.5px 1px rgba(0,0,0,.5);
     --skeleton:linear-gradient(100deg, rgba(241,241,239,.04) 30%, rgba(241,241,239,.09) 45%, rgba(241,241,239,.04) 60%);
   }
 
@@ -286,9 +289,9 @@
   /* ROWS mode: uniform grid */
   .collage.mode-rows{
     display:grid;gap:14px;
-    grid-template-columns:repeat(var(--cols,1),1fr);
+    grid-template-columns:repeat(var(--cols,1),minmax(0,1fr));
   }
-  .collage.mode-rows .frame{aspect-ratio:1/1;}
+  .collage.mode-rows .frame{aspect-ratio:1/1;min-width:0;}
   .collage.mode-rows .frame img{width:100%;height:100%;object-fit:cover;}
 
   .frame{
@@ -332,6 +335,22 @@
       0 0 0 1.5px var(--glow-color, var(--neon-a)),
       0 0 16px 2px color-mix(in srgb, var(--glow-color, var(--neon-a)) 80%, transparent),
       0 0 42px 8px color-mix(in srgb, var(--glow-color, var(--neon-a)) 45%, transparent);
+  }
+
+  @media(max-width:900px){
+    [data-theme="neon"] .frame{
+      box-shadow:
+        0 0 0 0.5px var(--glow-color, var(--neon-a)),
+        0 0 5px 0.5px color-mix(in srgb, var(--glow-color, var(--neon-a)) 65%, transparent),
+        0 0 13px 2px color-mix(in srgb, var(--glow-color, var(--neon-a)) 30%, transparent);
+    }
+    [data-theme="neon"] .frame:hover{
+      box-shadow:
+        0 0 0 0.75px var(--glow-color, var(--neon-a)),
+        0 0 8px 1px color-mix(in srgb, var(--glow-color, var(--neon-a)) 80%, transparent),
+        0 0 21px 4px color-mix(in srgb, var(--glow-color, var(--neon-a)) 45%, transparent);
+    }
+    .frame{ box-shadow:var(--frame-shadow-mobile); }
   }
 
   .frame.skeleton{ background:var(--skeleton); background-size:200% 100%; animation:shimmer 1.4s infinite; opacity:1;transform:none; }
