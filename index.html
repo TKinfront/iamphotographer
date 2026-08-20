@@ -212,6 +212,45 @@
   .cols-pill-group{ display:flex; width:100%; }
   .cols-pill-group .pill-btn{ flex:1; justify-content:center; font-size:12px; }
   @media(max-width:640px){ .cols-4-only{ display:none; } }
+
+  .gap-control{ margin-top:16px; }
+  .gap-control .gap-label-row{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .gap-control label{
+    font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);
+  }
+  .gap-control .gap-value{
+    font-family:var(--font-mono);font-size:11px;color:var(--text-dim);
+  }
+  .gap-slider{
+    -webkit-appearance:none;appearance:none;
+    width:100%;height:4px;border-radius:999px;
+    background:var(--control-bg);
+    outline:none;
+    cursor:pointer;
+  }
+  .gap-slider::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:16px;height:16px;border-radius:999px;
+    background:var(--accent);
+    border:2px solid var(--bg-elev);
+    box-shadow:0 1px 3px rgba(0,0,0,.3);
+    cursor:pointer;
+  }
+  .gap-slider::-moz-range-thumb{
+    width:16px;height:16px;border-radius:999px;
+    background:var(--accent);
+    border:2px solid var(--bg-elev);
+    box-shadow:0 1px 3px rgba(0,0,0,.3);
+    cursor:pointer;
+    border:none;
+  }
+  .gap-slider::-moz-range-track{
+    height:4px;border-radius:999px;background:var(--control-bg);
+  }
+
   .popover .sub{font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;}
   .tabs{display:flex;gap:4px;background:var(--control-bg);border-radius:8px;padding:3px;margin-bottom:14px;}
   .tab-btn{flex:1;text-align:center;padding:7px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--text-dim);}
@@ -278,11 +317,11 @@
   .collage.mode-mix{
     display:flex;
     align-items:flex-start;
-    gap:14px;
+    gap:var(--gap,14px);
   }
   .collage.mode-mix .mix-col{
     display:flex;flex-direction:column;
-    gap:14px;
+    gap:var(--gap,14px);
     flex:1 1 0;
     min-width:0;
   }
@@ -291,7 +330,7 @@
 
   /* ROWS mode: uniform grid */
   .collage.mode-rows{
-    display:grid;gap:14px;
+    display:grid;gap:var(--gap,14px);
     grid-template-columns:repeat(var(--cols,1),minmax(0,1fr));
   }
   .collage.mode-rows .frame{aspect-ratio:1/1;min-width:0;}
@@ -599,6 +638,13 @@ https://…png
           <button class="pill-btn" data-cols="2">2</button>
           <button class="pill-btn" data-cols="3">3</button>
           <button class="pill-btn cols-4-only" data-cols="4">4</button>
+        </div>
+        <div class="gap-control">
+          <div class="gap-label-row">
+            <label for="gapSlider">Відстань між фото</label>
+            <span class="gap-value" id="gapValue">14px</span>
+          </div>
+          <input type="range" id="gapSlider" class="gap-slider" min="0" max="32" step="2" value="14">
         </div>
       </div>
     </div>
@@ -953,6 +999,20 @@ https://…png
       saveSetting('userColCount', state.userColCount);
       if(state.photos.length) renderPhotos();
     });
+  });
+
+  const gapSlider = $('#gapSlider');
+  const gapValue = $('#gapValue');
+  function applyGap(px){
+    collageEl.style.setProperty('--gap', px + 'px');
+    gapValue.textContent = px + 'px';
+  }
+  gapSlider.addEventListener('input', ()=>{
+    const px = parseInt(gapSlider.value, 10);
+    applyGap(px);
+  });
+  gapSlider.addEventListener('change', ()=>{
+    saveSetting('gap', parseInt(gapSlider.value, 10));
   });
 
   document.querySelectorAll('.tab-btn').forEach(tb=>{
@@ -1560,6 +1620,11 @@ https://…png
         document.querySelectorAll('#colsPillGroup .pill-btn').forEach(b=>b.classList.remove('active'));
         match.classList.add('active');
       }
+    }
+    const savedGap = await loadSetting('gap');
+    if(savedGap !== null && savedGap !== undefined){
+      gapSlider.value = savedGap;
+      applyGap(savedGap);
     }
     const savedLinks = await loadSetting('linkList');
     if(savedLinks) $('#linkList').value = savedLinks;
