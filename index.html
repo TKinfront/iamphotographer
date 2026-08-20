@@ -224,9 +224,12 @@
     background:var(--control-bg);
     border:1px solid var(--line);
     border-radius:8px;
-    font-size:13px;font-family:var(--font-mono);
+    font-size:16px;font-family:var(--font-mono);
     color:var(--text);
     transition:border-color .2s;
+  }
+  @media(min-width:641px){
+    .field input,.field textarea{ font-size:13px; }
   }
   .field textarea{resize:vertical;min-height:74px;line-height:1.5;}
   .field input:focus,.field textarea:focus{outline:none;border-color:var(--accent);}
