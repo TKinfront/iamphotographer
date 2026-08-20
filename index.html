@@ -265,9 +265,9 @@
   .hero .btn{padding:13px 26px;font-size:13px;}
 
   /* ---------- Collage ---------- */
-  main{padding:22px 16px 90px;}
+  main{padding:22px 16px 90px;width:100%;max-width:100%;overflow-x:hidden;}
   .collage{
-    max-width:1500px;margin:0 auto;
+    max-width:1500px;margin:0 auto;width:100%;overflow-x:hidden;
   }
   /* MIX mode: masonry via independent JS-distributed columns (no CSS column-count —
      that approach rebalances the whole layout whenever a lazy image's height resolves,
@@ -1036,8 +1036,7 @@ https://…png
     const w = window.innerWidth;
     if(w >= 1280) return 4;
     if(w >= 900) return 3;
-    if(w >= 560) return 2;
-    return 1;
+    return 2; // default for phones and small tablets — 2 columns reads better than 1
   }
 
   /* ---------------- drag-to-reorder ---------------- */
@@ -1198,6 +1197,9 @@ https://…png
   }
 
   function showSkeletons(count){
+    collageEl.classList.remove('mode-mix');
+    collageEl.classList.add('mode-rows');
+    collageEl.style.setProperty('--cols', getColumnCount());
     collageEl.innerHTML = '';
     for(let i=0;i<count;i++){
       const f = document.createElement('div');
